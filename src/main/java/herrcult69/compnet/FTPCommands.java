@@ -4,19 +4,22 @@ import java.io.PrintWriter;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.io.InputStream;
+import java.io.FileOutputStream;
+import java.io.FileInputStream;
+import java.io.OutputStream;
 
 public class FTPCommands {
-    private final Socket socket;
     private final PrintWriter pw;
     private final BufferedReader br;
+    private final Socket socket;
 
-    public FTPCommands(Socket socket, PrintWriter pw, BufferedReader br) {
-        this.socket = socket;
+    public FTPCommands(PrintWriter pw, BufferedReader br, Socket socket) {
         this.pw = pw;
         this.br = br;
+        this.socket = socket;
     }
 
     public String readReply() throws IOException { // return last line
@@ -26,7 +29,7 @@ public class FTPCommands {
                 return null;
             }
             if (responseString.trim().isEmpty()) {
-                continue; // Ignore empty lines, or you can break/return based on preference
+                continue; 
             }
             System.out.println("Response: " + responseString);
             if (responseString.length() >= 4 && responseString.charAt(3) == ' ') {
@@ -45,6 +48,166 @@ public class FTPCommands {
         System.out.println("Sent command: " + command);
     }
 
+    public String loginAnonymous() throws IOException {
+        sendCommand("USER demo");
+        String reply = readReply();
+        if (reply != null && reply.startsWith("331")) {
+            sendCommand("PASS password");
+            reply = readReply();
+        }
+        return reply;
+    }
+
+    public String login(String username, String password) throws IOException {
+        sendCommand("USER " + username);
+        String reply = readReply();
+        if (reply != null && reply.startsWith("331")) {
+            sendCommand("PASS " + password);
+            reply = readReply();
+        }
+        return reply;
+    }
+
+    public String sendQuit() throws IOException {
+        sendCommand("QUIT");
+        return readReply();
+    }
+
+    public String sendPWD() throws IOException {
+        sendCommand("PWD");
+        return readReply();
+    }
+
+    public String sendCWD(String dirPath) throws IOException {
+        sendCommand("CWD " + dirPath);
+        return readReply();
+    }
+
+    public String sendMKD(String dirName) throws IOException {
+        sendCommand("MKD " + dirName);
+        return readReply();
+    }
+
+    public String sendRMD(String dirName) throws IOException {
+        sendCommand("RMD " + dirName);
+        return readReply();
+    }
+
+    public String sendPASV() throws IOException {
+        sendCommand("PASV");
+        return readReply();
+    }
+
+    public String sendDELE(String fileName) throws IOException {
+        sendCommand("DELE " + fileName);
+        return readReply();
+    }
+
+    public boolean setTYPEI() throws IOException {
+        sendCommand("TYPE I");
+        String rep = readReply();
+        return rep != null && rep.startsWith("200");
+    }
+
+    public void PASV_RETR(String remoteName) throws IOException {
+        Socket dataSocket = openPassiveDataSocket();
+
+        sendCommand("RETR " + remoteName);
+        readReply();
+        System.out.println("Downloading");
+
+        // Read directory structure from the DATA socket
+        try (
+                InputStream is = dataSocket.getInputStream();
+                FileOutputStream fos = new FileOutputStream(remoteName)) {
+            byte[] buffer = new byte[4096];
+            int numBytesRead;
+            while ((numBytesRead = is.read(buffer)) != -1) {
+                fos.write(buffer, 0, numBytesRead);
+            }
+            System.out.println("Download Complete");
+
+        }
+        // Read the 226 Transfer complete from the CONTROL socket
+        closeDataSocket(dataSocket);
+        readReply();
+
+    }
+
+    public void PASV_STOR(String localName, String remoteName) throws IOException {
+        Socket dataSocket = openPassiveDataSocket();
+
+        sendCommand("STOR " + remoteName);
+        readReply();
+
+        System.out.println("Uploading: " + localName);
+
+        // Read directory structure from the DATA socket
+        try (
+                FileInputStream fis = new FileInputStream(localName);
+                OutputStream os = dataSocket.getOutputStream();) {
+            byte[] buffer = new byte[4096];
+            int numBytesRead;
+            while ((numBytesRead = fis.read(buffer)) != -1) {
+                os.write(buffer, 0, numBytesRead);
+            }
+            os.flush(); // Ensure all bytes are pushed to the server
+            System.out.println("Upload Complete");
+        }
+
+        closeDataSocket(dataSocket);
+        // Read the 226 Transfer complete from the CONTROL socket
+        readReply();
+    }
+
+    public void PASV_LIST() throws IOException {
+        Socket dataSocket = openPassiveDataSocket();
+        sendCommand("LIST");
+        readReply();
+
+        // Read directory structure from the DATA socket
+        System.out.println("-------- LIST DIR ------");
+        BufferedReader dataReader = new BufferedReader(new InputStreamReader(dataSocket.getInputStream()));
+        String dataLine;
+        while ((dataLine = dataReader.readLine()) != null) {
+            System.out.println(dataLine);
+        }
+        System.out.println("-------------------------");
+
+        closeDataSocket(dataSocket);
+
+        // Read the 226 Transfer complete from the CONTROL socket
+        readReply();
+    }
+
+    public String PASV_LIST_GUI() throws IOException {
+        Socket dataSocket = openPassiveDataSocket();
+        sendCommand("LIST");
+        readReply();
+
+        StringBuilder sb = new StringBuilder();
+        BufferedReader dataReader = new BufferedReader(new InputStreamReader(dataSocket.getInputStream()));
+        String dataLine;
+        while ((dataLine = dataReader.readLine()) != null) {
+            sb.append(dataLine).append("\n");
+        }
+
+        closeDataSocket(dataSocket);
+        readReply();
+        return sb.toString();
+    }
+
+    private Socket openPassiveDataSocket() throws IOException {
+        sendCommand("PASV");
+        String line = readReply();
+        if (line == null || !line.startsWith("227")) {
+            System.err.println("PASV failed: " + line);
+            throw new IOException("PASV failled" + line);
+        }
+        InetSocketAddress addr = parsePASV(line);
+        return connectDataSocket(addr);
+
+    }
     public InetSocketAddress parsePASV(String line) {
         int i = 4;
         while (i < line.length() && !Character.isDigit(line.charAt(i))) {
@@ -83,82 +246,28 @@ public class FTPCommands {
         return new InetSocketAddress(host, port);
     }
 
-    public boolean loginAnonymous() throws IOException {
-        sendCommand("USER demo");
-        String reply = readReply();
-        if (reply != null && reply.startsWith("331")) {
-            sendCommand("PASS password");
-            reply = readReply();
-        }
-        return reply != null && reply.startsWith("230");
-    }
-
-    public void sendQuit() throws IOException {
-        sendCommand("QUIT");
-        readReply();
-    }
-
-    public void sendPwd() throws IOException {
-        sendCommand("PWD");
-        readReply();
-    }
-
-    public void sendCWD(String dirPath) throws IOException {
-        sendCommand("CWD " + dirPath);
-        readReply();
-    }
-
-    public void sendMKD(String dirName) throws IOException {
-        sendCommand("MKD " + dirName);
-        readReply();
-    }
-
-    public void sendRMD(String dirName) throws IOException {
-        sendCommand("RMD " + dirName);
-        readReply();
-    }
-
-    public void sendPASV() throws IOException {
-        sendCommand("PASV");
-        readReply();
-    }
-
-    public void PASV_LIST() throws IOException {
-        sendCommand("PASV");
-        String line = readReply();
-        if (line == null || !line.startsWith("227")) {
-            System.err.println("PASV failed: " + line);
-            return;
-        }
-
-        InetSocketAddress socketAddr = parsePASV(line);
-        Socket dataSocket = connectDataSocket(socketAddr);
-
-        sendCommand("LIST");
-        readReply();
-
-        // Read directory structure from the DATA socket
-        System.out.println("-------- LIST DIR ------");
-        BufferedReader dataReader = new BufferedReader(new InputStreamReader(dataSocket.getInputStream()));
-        String dataLine;
-        while ((dataLine = dataReader.readLine()) != null) {
-            System.out.println(dataLine);
-        }
-        System.out.println("-------------------------");
-
-        closeDataSocket(dataSocket);
-
-        // Read the 226 Transfer complete from the CONTROL socket
-        readReply();
-    }
-
-    public Socket connectDataSocket(InetSocketAddress socketAddress) throws IOException {
+    private Socket connectDataSocket(InetSocketAddress socketAddress) throws IOException {
         Socket sc = new Socket(socketAddress.getAddress(), socketAddress.getPort());
         return sc;
     }
 
-    public void closeDataSocket(Socket socket) throws IOException {
+    private void closeDataSocket(Socket socket) throws IOException {
         socket.close();
     }
+    public void close() throws IOException {
+        try {
+            // send QUIT first (if possible)
+            sendCommand("QUIT");
+            // String reply = readReply(); // likely 221
+            // you could ignore/just log this reply
+        } catch (IOException e) {
+            // if QUIT fails, still proceed to close socket
+        } finally {
+            try { pw.close(); } catch (Exception ignore) {}
+            try {br.close(); } catch (Exception ignore) {}
+            try { if (socket != null && !socket.isClosed()) socket.close(); } catch (Exception ignore) {}
+        }
+    }
+
 
 }
