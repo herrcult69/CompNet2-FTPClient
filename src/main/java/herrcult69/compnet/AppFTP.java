@@ -1,10 +1,6 @@
 package herrcult69.compnet;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
-import java.net.Socket;
 
 import javafx.application.Application;
 import javafx.scene.Scene;
@@ -17,14 +13,12 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
-
 import javafx.scene.control.TextInputDialog;
 import javafx.stage.FileChooser;
 import java.io.File;
 
 public class AppFTP extends Application {
     private FTPCommands ftpc;
-    private Socket socket;
 
     private TextField hostField;
     private TextField userField;
@@ -35,6 +29,7 @@ public class AppFTP extends Application {
     private Button connectButton;
     private Button loginButton;
     private Button anonLoginButton;
+    private Button logoutButton;
 
     Button pwdBtn = new Button("PWD");
     Button lsBtn = new Button("LS");
@@ -44,10 +39,6 @@ public class AppFTP extends Application {
     Button getBtn = new Button("Download (GET)...");
 
     private HBox commandMenu;
-    private Button logoutButton;
-
-    private boolean isConnected = false;
-    private boolean isLoggedIn = false;
 
     @Override
     public void start(Stage stage) {
@@ -72,11 +63,9 @@ public class AppFTP extends Application {
         HBox row3 = new HBox(5, passField);
         row3.setPrefHeight(30);
 
-        // Left side: VBox with the 3 rows
         VBox leftBox = new VBox(5, row1, row2, row3);
         leftBox.setPrefWidth(300);
 
-        // Buttons
         connectButton = new Button("Connect");
         connectButton.setPrefWidth(150);
         connectButton.setPrefHeight(80);
@@ -93,26 +82,20 @@ public class AppFTP extends Application {
         logoutButton.setPrefWidth(150);
         logoutButton.setPrefHeight(80);
 
-        // Top area
         HBox topPanel = new HBox(10, leftBox, connectButton, loginButton, anonLoginButton, logoutButton);
         topPanel.setPrefHeight(120);
 
-        // Center: logs
         clientLog = new TextArea();
         clientLog.setEditable(false);
-        clientLog.setPrefRowCount(20);
-        clientLog.setPrefColumnCount(40);
         clientLog.setPromptText("Client commands / actions");
 
         serverLog = new TextArea();
         serverLog.setEditable(false);
-        serverLog.setPrefRowCount(20);
-        serverLog.setPrefColumnCount(40);
         serverLog.setPromptText("Server replies / listings");
 
         SplitPane centerPane = new SplitPane(clientLog, serverLog);
         centerPane.setDividerPositions(0.5);
-        
+
         commandMenu = new HBox(10, pwdBtn, lsBtn, cdBtn, putBtn, getBtn);
 
         BorderPane root = new BorderPane();
@@ -125,6 +108,7 @@ public class AppFTP extends Application {
         stage.setScene(scene);
         stage.show();
 
+        ftpc = new FTPCommands();
 
         // Initial UI state:
         loginButton.setDisable(true);
@@ -146,6 +130,7 @@ public class AppFTP extends Application {
                 if (ftpc != null) serverLog.appendText(ftpc.sendPWD() + "\n");
             } catch (IOException ex) {
                 clientLog.appendText("Error: " + ex.getMessage() + "\n");
+                cleanupConnection();
             }
         });
 
@@ -158,6 +143,7 @@ public class AppFTP extends Application {
                 }
             } catch (Exception ex) {
                 clientLog.appendText("Error: " + ex.getMessage() + "\n");
+                cleanupConnection();
             }
         });
 
@@ -173,6 +159,7 @@ public class AppFTP extends Application {
                         if (ftpc != null) serverLog.appendText(ftpc.sendCWD(path) + "\n");
                     } catch (IOException ex) {
                         clientLog.appendText("Error: " + ex.getMessage() + "\n");
+                        cleanupConnection();
                     }
                 }
             });
@@ -193,6 +180,7 @@ public class AppFTP extends Application {
                     }
                 } catch (IOException ex) {
                     clientLog.appendText("Error: " + ex.getMessage() + "\n");
+                    cleanupConnection();
                 }
             }
         });
@@ -212,6 +200,7 @@ public class AppFTP extends Application {
                         }
                     } catch (IOException ex) {
                         clientLog.appendText("Error: " + ex.getMessage() + "\n");
+                        cleanupConnection();
                     }
                 }
             });
@@ -219,9 +208,8 @@ public class AppFTP extends Application {
     }
 
     private void onConnectButtonClicked() {
-        if (ftpc != null) {
-            clientLog.appendText("Already connected.\n");
-            return;
+        if (ftpc == null) {
+            ftpc = new FTPCommands();
         }
 
         String host = hostField.getText().trim();
@@ -233,31 +221,21 @@ public class AppFTP extends Application {
             hostField.setStyle("");
         }
 
-        try {
-            socket = new Socket(host, 21);
-            BufferedReader br = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            PrintWriter pw = new PrintWriter(socket.getOutputStream(), true);
-            ftpc = new FTPCommands(pw, br, socket);
-
-            clientLog.appendText("Connected to " + host + ".\n");
-
-            // Read server greeting
-            String greet = ftpc.readReply();
-            serverLog.appendText(greet + "\n");
-
-            // Update UI: allow login, edit credentials
-            connectButton.setDisable(true);
-            loginButton.setDisable(false);
-            anonLoginButton.setDisable(false);
-            logoutButton.setDisable(false); // Enable logout once connected
-            userField.setDisable(false);
-            passField.setDisable(false);
-            
-
-        } catch (IOException ex) {
-            clientLog.appendText("Connection failed: " + ex.getMessage() + "\n");
+        boolean ok = ftpc.connect(host, 21);
+        if (!ok) {
+            clientLog.appendText("Connection failed.\n");
             cleanupConnection();
+            return;
         }
+
+        clientLog.appendText("Connected to " + host + ".\n");
+
+        connectButton.setDisable(true);
+        loginButton.setDisable(false);
+        anonLoginButton.setDisable(false);
+        logoutButton.setDisable(false);
+        userField.setDisable(false);
+        passField.setDisable(false);
     }
 
     private void onLoginButtonClicked() {
@@ -278,7 +256,7 @@ public class AppFTP extends Application {
         }
 
         try {
-            String reply = ftpc.login(user, pass); // adjust to your FTPCommands API
+            String reply = ftpc.login(user, pass);
             serverLog.appendText(reply + "\n");
 
             int code = Integer.parseInt(reply.substring(0, 3));
@@ -303,16 +281,18 @@ public class AppFTP extends Application {
         }
 
         String anonUser = "demo";
-        String anonPass = "password"; // or any email-like string
+        String anonPass = "password";
 
         try {
-            String reply = ftpc.login(anonUser, anonPass); // adjust to your API
+            String reply = ftpc.login(anonUser, anonPass);
             serverLog.appendText(reply + "\n");
 
             int code = Integer.parseInt(reply.substring(0, 3));
             if (code == 230) {
                 clientLog.appendText("Anonymous login successful.\n");
                 enableCommandsUI(true);
+                loginButton.setDisable(true);
+                anonLoginButton.setDisable(true);
             } else {
                 clientLog.appendText("Anonymous login failed (code " + code + ").\n");
             }
@@ -330,18 +310,11 @@ public class AppFTP extends Application {
     private void cleanupConnection() {
         try {
             if (ftpc != null) {
-                ftpc.sendQuit(); // Send QUIT command politely
-            }
-        } catch (Exception ignore) {}
-
-        try {
-            if (socket != null && !socket.isClosed()) {
-                socket.close();
+                ftpc.close();
             }
         } catch (Exception ignore) {}
 
         ftpc = null;
-        socket = null;
 
         connectButton.setDisable(false);
         loginButton.setDisable(true);

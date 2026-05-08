@@ -12,14 +12,25 @@ import java.io.FileInputStream;
 import java.io.OutputStream;
 
 public class FTPCommands {
-    private final PrintWriter pw;
-    private final BufferedReader br;
-    private final Socket socket;
+    private Socket socket;
+    private PrintWriter pw;
+    private BufferedReader br;
 
-    public FTPCommands(PrintWriter pw, BufferedReader br, Socket socket) {
-        this.pw = pw;
-        this.br = br;
-        this.socket = socket;
+    // New: connect method – creates socket + streams
+    public boolean connect(String host, int port) {
+        try {
+            socket = new Socket(host, port);
+            br = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            pw = new PrintWriter(socket.getOutputStream(), true);
+
+            String greet = readReply();
+            System.out.println("Connected, greeting: " + greet);
+            return true;
+        } catch (IOException e) {
+            System.out.println("Connect error: " + e.getMessage());
+            cleanup();
+            return false;
+        }
     }
 
     public String readReply() throws IOException { // return last line
@@ -29,13 +40,13 @@ public class FTPCommands {
                 return null;
             }
             if (responseString.trim().isEmpty()) {
-                continue; 
+                continue;
             }
             System.out.println("Response: " + responseString);
             if (responseString.length() >= 4 && responseString.charAt(3) == ' ') {
                 if (Character.isDigit(responseString.charAt(0)) &&
-                        Character.isDigit(responseString.charAt(1)) &&
-                        Character.isDigit(responseString.charAt(2))) {
+                    Character.isDigit(responseString.charAt(1)) &&
+                    Character.isDigit(responseString.charAt(2))) {
                     return responseString;
                 }
             }
@@ -116,22 +127,19 @@ public class FTPCommands {
         readReply();
         System.out.println("Downloading");
 
-        // Read directory structure from the DATA socket
-        try (
-                InputStream is = dataSocket.getInputStream();
-                FileOutputStream fos = new FileOutputStream(remoteName)) {
+        try (InputStream is = dataSocket.getInputStream();
+             FileOutputStream fos = new FileOutputStream(remoteName)) {
+
             byte[] buffer = new byte[4096];
             int numBytesRead;
             while ((numBytesRead = is.read(buffer)) != -1) {
                 fos.write(buffer, 0, numBytesRead);
             }
             System.out.println("Download Complete");
-
         }
-        // Read the 226 Transfer complete from the CONTROL socket
+
         closeDataSocket(dataSocket);
         readReply();
-
     }
 
     public void PASV_STOR(String localName, String remoteName) throws IOException {
@@ -142,21 +150,19 @@ public class FTPCommands {
 
         System.out.println("Uploading: " + localName);
 
-        // Read directory structure from the DATA socket
-        try (
-                FileInputStream fis = new FileInputStream(localName);
-                OutputStream os = dataSocket.getOutputStream();) {
+        try (FileInputStream fis = new FileInputStream(localName);
+             OutputStream os = dataSocket.getOutputStream()) {
+
             byte[] buffer = new byte[4096];
             int numBytesRead;
             while ((numBytesRead = fis.read(buffer)) != -1) {
                 os.write(buffer, 0, numBytesRead);
             }
-            os.flush(); // Ensure all bytes are pushed to the server
+            os.flush();
             System.out.println("Upload Complete");
         }
 
         closeDataSocket(dataSocket);
-        // Read the 226 Transfer complete from the CONTROL socket
         readReply();
     }
 
@@ -165,7 +171,6 @@ public class FTPCommands {
         sendCommand("LIST");
         readReply();
 
-        // Read directory structure from the DATA socket
         System.out.println("-------- LIST DIR ------");
         BufferedReader dataReader = new BufferedReader(new InputStreamReader(dataSocket.getInputStream()));
         String dataLine;
@@ -175,8 +180,6 @@ public class FTPCommands {
         System.out.println("-------------------------");
 
         closeDataSocket(dataSocket);
-
-        // Read the 226 Transfer complete from the CONTROL socket
         readReply();
     }
 
@@ -202,12 +205,12 @@ public class FTPCommands {
         String line = readReply();
         if (line == null || !line.startsWith("227")) {
             System.err.println("PASV failed: " + line);
-            throw new IOException("PASV failled" + line);
+            throw new IOException("PASV failed: " + line);
         }
         InetSocketAddress addr = parsePASV(line);
         return connectDataSocket(addr);
-
     }
+
     public InetSocketAddress parsePASV(String line) {
         int i = 4;
         while (i < line.length() && !Character.isDigit(line.charAt(i))) {
@@ -227,7 +230,6 @@ public class FTPCommands {
         }
 
         String tuplePart = line.substring(i, end + 1);
-
         String[] octets = tuplePart.split(",");
         if (octets.length != 6) {
             throw new IllegalArgumentException("PASV expected 6 values tuple from: " + line);
@@ -247,27 +249,30 @@ public class FTPCommands {
     }
 
     private Socket connectDataSocket(InetSocketAddress socketAddress) throws IOException {
-        Socket sc = new Socket(socketAddress.getAddress(), socketAddress.getPort());
-        return sc;
+        return new Socket(socketAddress.getAddress(), socketAddress.getPort());
     }
 
     private void closeDataSocket(Socket socket) throws IOException {
         socket.close();
     }
-    public void close() throws IOException {
-        try {
-            // send QUIT first (if possible)
-            sendCommand("QUIT");
-            // String reply = readReply(); // likely 221
-            // you could ignore/just log this reply
-        } catch (IOException e) {
-            // if QUIT fails, still proceed to close socket
-        } finally {
-            try { pw.close(); } catch (Exception ignore) {}
-            try {br.close(); } catch (Exception ignore) {}
-            try { if (socket != null && !socket.isClosed()) socket.close(); } catch (Exception ignore) {}
-        }
+
+    // Cleanup helper
+    private void cleanup() {
+        try { if (pw != null) pw.close(); } catch (Exception ignore) {}
+        try { if (br != null) br.close(); } catch (Exception ignore) {}
+        try { if (socket != null && !socket.isClosed()) socket.close(); } catch (Exception ignore) {}
     }
 
-
+    public void close() {
+        try {
+            if (socket != null && !socket.isClosed()) {
+                sendCommand("QUIT");
+                readReply();
+            }
+        } catch (IOException e) {
+            // ignore, we're closing anyway
+        } finally {
+            cleanup();
+        }
+    }
 }
