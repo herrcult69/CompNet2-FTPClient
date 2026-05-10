@@ -43,14 +43,14 @@ public class AppFTP extends Application {
     @Override
     public void start(Stage stage) {
         // Row 1: Host
-        hostField = new TextField("test.rebex.net");
+        hostField = new TextField("127.0.0.1");
         hostField.setPromptText("Host");
         hostField.setPrefColumnCount(20);
         HBox row1 = new HBox(5, hostField);
         row1.setPrefHeight(30);
 
         // Row 2: User
-        userField = new TextField("demo");
+        userField = new TextField("admin");
         userField.setPromptText("User");
         userField.setPrefColumnCount(20);
         HBox row2 = new HBox(5, userField);
