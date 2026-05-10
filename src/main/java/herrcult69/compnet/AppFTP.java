@@ -221,21 +221,23 @@ public class AppFTP extends Application {
             hostField.setStyle("");
         }
 
-        boolean ok = ftpc.connect(host, 21);
-        if (!ok) {
-            clientLog.appendText("Connection failed.\n");
+        try {
+            String greet = ftpc.connect(host, 21);
+            clientLog.appendText("Connected to " + host + ".\n");
+            if (greet != null) {
+                serverLog.appendText(greet + "\n");
+            }
+
+            connectButton.setDisable(true);
+            loginButton.setDisable(false);
+            anonLoginButton.setDisable(false);
+            logoutButton.setDisable(false);
+            userField.setDisable(false);
+            passField.setDisable(false);
+        } catch (IOException ex) {
+            clientLog.appendText("Connection failed: " + ex.getMessage() + "\n");
             cleanupConnection();
-            return;
         }
-
-        clientLog.appendText("Connected to " + host + ".\n");
-
-        connectButton.setDisable(true);
-        loginButton.setDisable(false);
-        anonLoginButton.setDisable(false);
-        logoutButton.setDisable(false);
-        userField.setDisable(false);
-        passField.setDisable(false);
     }
 
     private void onLoginButtonClicked() {

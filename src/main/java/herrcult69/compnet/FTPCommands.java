@@ -17,7 +17,7 @@ public class FTPCommands {
     private BufferedReader br;
 
     // New: connect method – creates socket + streams
-    public boolean connect(String host, int port) {
+    public String connect(String host, int port) throws IOException {
         try {
             socket = new Socket(host, port);
             br = new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -25,11 +25,11 @@ public class FTPCommands {
 
             String greet = readReply();
             System.out.println("Connected, greeting: " + greet);
-            return true;
+            return greet;
         } catch (IOException e) {
             System.out.println("Connect error: " + e.getMessage());
             cleanup();
-            return false;
+            throw e;
         }
     }
 
