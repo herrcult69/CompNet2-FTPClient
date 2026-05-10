@@ -1,0 +1,58 @@
+.root {
+    -fx-font-family: "Segoe UI";
+    -fx-background-color: #f4f6f8;
+}
+
+.label {
+    -fx-font-size: 13px;
+}
+
+.section-title {
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+}
+
+.button {
+    -fx-background-radius: 8;
+    -fx-font-size: 13px;
+    -fx-padding: 8 14 8 14;
+}
+
+.button:hover {
+    -fx-cursor: hand;
+}
+
+.primary-button {
+    -fx-background-color: #3b82f6;
+    -fx-text-fill: white;
+}
+
+.primary-button:hover {
+    -fx-background-color: #2563eb;
+}
+
+
+.text-field,
+.password-field {
+    -fx-background-radius: 6;
+    -fx-border-radius: 6;
+    -fx-padding: 6;
+}
+
+
+
+.text-area {
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-font-family: Consolas;
+}
+
+.text-area .content {
+    -fx-background-color: white;
+    -fx-background-radius: 8;
+}
+
+.tool-bar {
+    -fx-background-color: #e9eef5;
+    -fx-padding: 8;
+}

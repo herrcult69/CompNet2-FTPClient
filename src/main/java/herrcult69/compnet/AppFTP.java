@@ -1,21 +1,25 @@
 package herrcult69.compnet;
 
-import java.io.IOException;
-
 import javafx.application.Application;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.scene.control.TextInputDialog;
+import javafx.scene.control.ToolBar;
 import javafx.stage.FileChooser;
 import java.io.File;
+import java.io.IOException;
 
 public class AppFTP extends Application {
     private FTPCommands ftpc;
@@ -38,87 +42,129 @@ public class AppFTP extends Application {
     Button putBtn = new Button("Upload (PUT)...");
     Button getBtn = new Button("Download (GET)...");
 
-    private HBox commandMenu;
+    private ToolBar commandMenu;
+    private BorderPane root;
 
     @Override
     public void start(Stage stage) {
-        // Row 1: Host
-        hostField = new TextField("127.0.0.1");
-        hostField.setPromptText("Host");
-        hostField.setPrefColumnCount(20);
-        HBox row1 = new HBox(5, hostField);
-        row1.setPrefHeight(30);
-
-        // Row 2: User
-        userField = new TextField("admin");
-        userField.setPromptText("User");
-        userField.setPrefColumnCount(20);
-        HBox row2 = new HBox(5, userField);
-        row2.setPrefHeight(30);
-
-        // Row 3: Password
-        passField = new PasswordField();
-        passField.setPromptText("Password");
-        passField.setPrefColumnCount(20);
-        HBox row3 = new HBox(5, passField);
-        row3.setPrefHeight(30);
-
-        VBox leftBox = new VBox(5, row1, row2, row3);
-        leftBox.setPrefWidth(300);
-
-        connectButton = new Button("Connect");
-        connectButton.setPrefWidth(150);
-        connectButton.setPrefHeight(80);
-
-        loginButton = new Button("Login");
-        loginButton.setPrefWidth(150);
-        loginButton.setPrefHeight(80);
-
-        anonLoginButton = new Button("Anonymous Login");
-        anonLoginButton.setPrefWidth(150);
-        anonLoginButton.setPrefHeight(80);
-
-        logoutButton = new Button("Log Out");
-        logoutButton.setPrefWidth(150);
-        logoutButton.setPrefHeight(80);
-
-        HBox topPanel = new HBox(10, leftBox, connectButton, loginButton, anonLoginButton, logoutButton);
-        topPanel.setPrefHeight(120);
-
-        clientLog = new TextArea();
-        clientLog.setEditable(false);
-        clientLog.setPromptText("Client commands / actions");
-
-        serverLog = new TextArea();
-        serverLog.setEditable(false);
-        serverLog.setPromptText("Server replies / listings");
-
-        SplitPane centerPane = new SplitPane(clientLog, serverLog);
-        centerPane.setDividerPositions(0.5);
-
-        commandMenu = new HBox(10, pwdBtn, lsBtn, cdBtn, putBtn, getBtn);
-
-        BorderPane root = new BorderPane();
-        root.setTop(topPanel);
-        root.setCenter(centerPane);
-        root.setBottom(commandMenu);
+        initGUI();
+        setupEventHandlers(stage);
 
         Scene scene = new Scene(root, 900, 600);
+        scene.getStylesheets().add(getClass().getResource("/style.css").toExternalForm());
         stage.setTitle("FTP Client (JavaFX)");
         stage.setScene(scene);
         stage.show();
 
         ftpc = new FTPCommands();
+        updateUIState(AppState.DISCONNECTED);
+    }
 
-        // Initial UI state:
-        loginButton.setDisable(true);
-        anonLoginButton.setDisable(true);
-        logoutButton.setDisable(true);
-        userField.setDisable(true);
-        passField.setDisable(true);
-        commandMenu.setDisable(true);
+    private void initGUI() {
+        // Connection Fields
 
-        // Wire buttons
+        Label hostLabel = new Label("Host");
+        hostLabel.setMinWidth(70);
+
+        hostField = new TextField("127.0.0.1");
+        hostField.setPromptText("FTP Server Address");
+
+        HBox row1 = new HBox(8, hostLabel, hostField);
+        row1.setAlignment(Pos.CENTER_LEFT);
+
+        Label userLabel = new Label("User");
+        userLabel.setMinWidth(70);
+
+        userField = new TextField("admin");
+        userField.setPromptText("Username");
+
+        HBox row2 = new HBox(8, userLabel, userField);
+        row2.setAlignment(Pos.CENTER_LEFT);
+
+        Label passLabel = new Label("Password");
+        passLabel.setMinWidth(70);
+
+        passField = new PasswordField();
+        passField.setPromptText("Password");
+
+        HBox row3 = new HBox(8, passLabel, passField);
+        row3.setAlignment(Pos.CENTER_LEFT);
+
+        VBox leftBox = new VBox(10, row1, row2, row3);
+        leftBox.setPrefWidth(320);
+        // Buttons
+
+        connectButton = new Button("Connect");
+        connectButton.setPrefSize(120, 40);
+        connectButton.getStyleClass().add("primary-button");
+
+        loginButton = new Button("Login");
+        loginButton.setPrefSize(120, 40);
+
+        anonLoginButton = new Button("Anonymous");
+        anonLoginButton.setPrefSize(140, 40);
+
+        logoutButton = new Button("Logout");
+        logoutButton.setPrefSize(120, 40);
+
+        HBox buttonBar = new HBox(
+                10,
+                connectButton,
+                loginButton,
+                anonLoginButton,
+                logoutButton);
+
+        buttonBar.setAlignment(Pos.CENTER_LEFT);
+
+        VBox topPanel = new VBox(
+                15,
+                leftBox,
+                buttonBar);
+
+        topPanel.setPadding(new Insets(15));
+        // Logs
+
+        clientLog = new TextArea();
+        clientLog.setEditable(false);
+        clientLog.setPromptText("Client commands and actions");
+
+        serverLog = new TextArea();
+        serverLog.setEditable(false);
+        serverLog.setPromptText("Server replies and file listings");
+
+        Label clientLabel = new Label("Client");
+        clientLabel.getStyleClass().add("section-title");
+
+        Label serverLabel = new Label("Server");
+        serverLabel.getStyleClass().add("section-title");
+
+        VBox leftLogBox = new VBox(5, clientLabel, clientLog);
+        VBox rightLogBox = new VBox(5, serverLabel, serverLog);
+        VBox.setVgrow(clientLog, Priority.ALWAYS);
+        VBox.setVgrow(serverLog, Priority.ALWAYS);
+
+        SplitPane centerPane = new SplitPane(leftLogBox, rightLogBox);
+        centerPane.setDividerPositions(0.5);
+        // Bottom Commands
+
+        commandMenu = new ToolBar(
+                pwdBtn,
+                lsBtn,
+                cdBtn,
+                putBtn,
+                getBtn);
+        // Root Layout
+
+        root = new BorderPane();
+
+        root.setPadding(new Insets(10));
+
+        root.setTop(topPanel);
+        root.setCenter(centerPane);
+        root.setBottom(commandMenu);
+    }
+
+    private void setupEventHandlers(Stage stage) {
         connectButton.setOnAction(e -> onConnectButtonClicked());
         loginButton.setOnAction(e -> onLoginButtonClicked());
         anonLoginButton.setOnAction(e -> onAnonymousLoginClicked());
@@ -127,23 +173,33 @@ public class AppFTP extends Application {
         pwdBtn.setOnAction(e -> {
             clientLog.appendText("> pwd\n");
             try {
-                if (ftpc != null) serverLog.appendText(ftpc.sendPWD() + "\n");
+                ResponseData res = ftpc.sendPWD();
+                if (res.isSuccess()) {
+                    serverLog.appendText(res.getMessage() + "\n");
+                } else {
+                    clientLog.appendText("PWD Error: " + res.getMessage() + "\n");
+                    updateUIState(AppState.DISCONNECTED);
+                }
             } catch (IOException ex) {
-                clientLog.appendText("Error: " + ex.getMessage() + "\n");
-                cleanupConnection();
+                clientLog.appendText("PWD Error: " + ex.getMessage() + "\n");
+                updateUIState(AppState.DISCONNECTED);
             }
         });
 
         lsBtn.setOnAction(e -> {
             clientLog.appendText("> ls\n");
             try {
-                if (ftpc != null) {
-                    String listResult = ftpc.PASV_LIST_GUI();
-                    serverLog.appendText(listResult + "\n");
+                ResponseData res = ftpc.PASV_LIST_GUI();
+                if (res.isSuccess()) {
+                    serverLog.appendText(res.getData() + "\n");
+                    serverLog.appendText(res.getMessage() + "\n");
+                } else {
+                    clientLog.appendText("LS Error: " + res.getMessage() + "\n");
+                    updateUIState(AppState.DISCONNECTED);
                 }
-            } catch (Exception ex) {
-                clientLog.appendText("Error: " + ex.getMessage() + "\n");
-                cleanupConnection();
+            } catch (IOException ex) {
+                clientLog.appendText("LS Error: " + ex.getMessage() + "\n");
+                updateUIState(AppState.DISCONNECTED);
             }
         });
 
@@ -156,10 +212,14 @@ public class AppFTP extends Application {
                 if (!path.trim().isEmpty()) {
                     clientLog.appendText("> cd " + path + "\n");
                     try {
-                        if (ftpc != null) serverLog.appendText(ftpc.sendCWD(path) + "\n");
+                        ResponseData res = ftpc.sendCWD(path);
+                        if (res.isSuccess()) {
+                            serverLog.appendText(res.getMessage() + "\n");
+                        } else {
+                            clientLog.appendText("CWD Error: " + res.getMessage() + "\n");
+                        }
                     } catch (IOException ex) {
-                        clientLog.appendText("Error: " + ex.getMessage() + "\n");
-                        cleanupConnection();
+                        clientLog.appendText("CWD Error: " + ex.getMessage() + "\n");
                     }
                 }
             });
@@ -174,13 +234,14 @@ public class AppFTP extends Application {
                 String name = selectedFile.getName();
                 clientLog.appendText("> put " + absPath + "\n");
                 try {
-                    if (ftpc != null) {
-                        ftpc.PASV_STOR(absPath, name);
+                    ResponseData res = ftpc.PASV_STOR(absPath, name);
+                    if (res.isSuccess()) {
                         serverLog.appendText("Upload completed for " + name + "\n");
+                    } else {
+                        clientLog.appendText("Upload Error: " + res.getMessage() + "\n");
                     }
                 } catch (IOException ex) {
-                    clientLog.appendText("Error: " + ex.getMessage() + "\n");
-                    cleanupConnection();
+                    clientLog.appendText("Upload Error: " + ex.getMessage() + "\n");
                 }
             }
         });
@@ -194,17 +255,61 @@ public class AppFTP extends Application {
                 if (!fileName.trim().isEmpty()) {
                     clientLog.appendText("> get " + fileName + "\n");
                     try {
-                        if (ftpc != null) {
-                            ftpc.PASV_RETR(fileName);
+                        ResponseData res = ftpc.PASV_RETR(fileName);
+                        if (res.isSuccess()) {
                             serverLog.appendText("Download completed for " + fileName + "\n");
+                        } else {
+                            clientLog.appendText("Download Error: " + res.getMessage() + "\n");
                         }
                     } catch (IOException ex) {
-                        clientLog.appendText("Error: " + ex.getMessage() + "\n");
-                        cleanupConnection();
+                        clientLog.appendText("Download Error: " + ex.getMessage() + "\n");
                     }
                 }
             });
         });
+    }
+
+    private void updateUIState(AppState state) {
+        switch (state) {
+            case DISCONNECTED:
+                connectButton.setDisable(false);
+                hostField.setDisable(false);
+
+                loginButton.setDisable(true);
+                anonLoginButton.setDisable(true);
+                userField.setDisable(true);
+                passField.setDisable(true);
+
+                logoutButton.setDisable(true);
+                commandMenu.setDisable(true);
+                break;
+
+            case CONNECTED:
+                connectButton.setDisable(true);
+                hostField.setDisable(true);
+
+                loginButton.setDisable(false);
+                anonLoginButton.setDisable(false);
+                userField.setDisable(false);
+                passField.setDisable(false);
+
+                logoutButton.setDisable(false);
+                commandMenu.setDisable(true);
+                break;
+
+            case LOGGED_IN:
+                connectButton.setDisable(true);
+                hostField.setDisable(true);
+
+                loginButton.setDisable(true);
+                anonLoginButton.setDisable(true);
+                userField.setDisable(true);
+                passField.setDisable(true);
+
+                logoutButton.setDisable(false);
+                commandMenu.setDisable(false);
+                break;
+        }
     }
 
     private void onConnectButtonClicked() {
@@ -222,30 +327,22 @@ public class AppFTP extends Application {
         }
 
         try {
-            String greet = ftpc.connect(host, 21);
-            clientLog.appendText("Connected to " + host + ".\n");
-            if (greet != null) {
-                serverLog.appendText(greet + "\n");
+            ResponseData res = ftpc.connect(host, 21);
+            if (res.isSuccess()) {
+                clientLog.appendText("Connected to " + host + ".\n");
+                serverLog.appendText(res.getMessage() + "\n");
+                updateUIState(AppState.CONNECTED);
+            } else {
+                clientLog.appendText("Connection failed: " + res.getMessage() + "\n");
+                updateUIState(AppState.DISCONNECTED);
             }
-
-            connectButton.setDisable(true);
-            loginButton.setDisable(false);
-            anonLoginButton.setDisable(false);
-            logoutButton.setDisable(false);
-            userField.setDisable(false);
-            passField.setDisable(false);
         } catch (IOException ex) {
-            clientLog.appendText("Connection failed: " + ex.getMessage() + "\n");
-            cleanupConnection();
+            clientLog.appendText("Connection error: " + ex.getMessage() + "\n");
+            updateUIState(AppState.DISCONNECTED);
         }
     }
 
     private void onLoginButtonClicked() {
-        if (ftpc == null) {
-            clientLog.appendText("Not connected.\n");
-            return;
-        }
-
         String user = userField.getText().trim();
         String pass = passField.getText();
 
@@ -258,79 +355,41 @@ public class AppFTP extends Application {
         }
 
         try {
-            String reply = ftpc.login(user, pass);
-            serverLog.appendText(reply + "\n");
-
-            int code = Integer.parseInt(reply.substring(0, 3));
-            if (code == 230) {
+            ResponseData res = ftpc.login(user, pass);
+            if (res.isSuccess()) {
                 clientLog.appendText("Login successful as " + user + ".\n");
-                enableCommandsUI(true);
-                loginButton.setDisable(true);
-                anonLoginButton.setDisable(true);
+                serverLog.appendText(res.getMessage() + "\n");
+                updateUIState(AppState.LOGGED_IN);
             } else {
-                clientLog.appendText("Login failed (code " + code + ").\n");
+                clientLog.appendText("Login failed: " + res.getMessage() + "\n");
             }
         } catch (IOException ex) {
             clientLog.appendText("Login error: " + ex.getMessage() + "\n");
-            cleanupConnection();
         }
     }
 
     private void onAnonymousLoginClicked() {
-        if (ftpc == null) {
-            clientLog.appendText("Not connected.\n");
-            return;
-        }
-
-        String anonUser = "demo";
-        String anonPass = "password";
-
         try {
-            String reply = ftpc.login(anonUser, anonPass);
-            serverLog.appendText(reply + "\n");
-
-            int code = Integer.parseInt(reply.substring(0, 3));
-            if (code == 230) {
+            ResponseData res = ftpc.loginAnonymous();
+            if (res.isSuccess()) {
                 clientLog.appendText("Anonymous login successful.\n");
-                enableCommandsUI(true);
-                loginButton.setDisable(true);
-                anonLoginButton.setDisable(true);
+                serverLog.appendText(res.getMessage() + "\n");
+                updateUIState(AppState.LOGGED_IN);
             } else {
-                clientLog.appendText("Anonymous login failed (code " + code + ").\n");
+                clientLog.appendText("Anonymous login failed: " + res.getMessage() + "\n");
             }
         } catch (IOException ex) {
             clientLog.appendText("Anonymous login error: " + ex.getMessage() + "\n");
-            cleanupConnection();
         }
     }
 
     private void onLogoutButtonClicked() {
         clientLog.appendText("Disconnecting...\n");
-        cleanupConnection();
-    }
-
-    private void cleanupConnection() {
-        try {
-            if (ftpc != null) {
-                ftpc.close();
-            }
-        } catch (Exception ignore) {}
-
-        ftpc = null;
-
-        connectButton.setDisable(false);
-        loginButton.setDisable(true);
-        anonLoginButton.setDisable(true);
-        logoutButton.setDisable(true);
-        userField.setDisable(true);
-        passField.setDisable(true);
-        enableCommandsUI(false);
-    }
-
-    private void enableCommandsUI(boolean enable) {
-        if (commandMenu != null) {
-            commandMenu.setDisable(!enable);
+        if (ftpc != null) {
+            ftpc.close();
         }
+        updateUIState(AppState.DISCONNECTED);
+        ftpc = new FTPCommands(); // Reset state
     }
 
     public static void main(String[] args) {
