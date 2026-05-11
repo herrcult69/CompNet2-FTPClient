@@ -6,16 +6,35 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.util.Properties;
 import java.io.InputStream;
 import java.io.FileOutputStream;
 import java.io.FileInputStream;
 import java.io.OutputStream;
 
+
+// This class stores the methods of socket/ftp related tasks:
+// - Server connections and Log in.
+// - Sending FTP Commands
+// - Handling server responses
+// - And helper functions to do the abovemention tasks.
+
 public class FTPCommands {
+    private final Properties props = new Properties();
+
+    // For better SOLID, the network related fields were isolated from the GUI.
     private Socket socket;
     private PrintWriter pw;
     private BufferedReader br;
 
+     public FTPCommands() throws IOException {
+        try (InputStream in = getClass().getClassLoader().getResourceAsStream("config.properties")) {
+            if (in == null) throw new IOException("config.properties not found");
+            props.load(in);
+        }
+    }
+
+    // Main Method: Connect to the FTP Server, and read the response data.
     public ResponseData connect(String host, int port) throws IOException {
         try {
             socket = new Socket(host, port);
@@ -23,7 +42,11 @@ public class FTPCommands {
             pw = new PrintWriter(socket.getOutputStream(), true);
 
             ResponseData greet = readReply();
-            System.out.println("Connected, greeting: " + greet.getMessage());
+            if (greet != null) {
+                System.out.println("Connected, greeting: " + greet.getMessage());
+            } else {
+                throw new IOException("Connection was established but the server closed it immediately (received null greeting).");
+            }
             return greet;
         } catch (IOException e) {
             System.out.println("Connect error: " + e.getMessage());
@@ -32,6 +55,8 @@ public class FTPCommands {
         }
     }
 
+    // Helper Method: Read FTP Response from Server. readline returns null if there is problem with connection. We check if the element at index 3 is 'blank' ? Final Line : Not Final
+    // We also check if three leading char of the line is Digits (is they status code).
     public ResponseData readReply() throws IOException {
         while (true) {
             String responseString = br.readLine();
@@ -53,22 +78,14 @@ public class FTPCommands {
         }
     }
 
+    // Helper method: Send the given command via print writer
     public void sendCommand(String command) throws IOException {
         pw.print(command + "\r\n");
         pw.flush();
         System.out.println("Sent command: " + command);
     }
-
-    public ResponseData loginAnonymous() throws IOException {
-        sendCommand("USER demo");
-        ResponseData reply = readReply();
-        if (reply != null && reply.getStatusCode().startsWith("331")) {
-            sendCommand("PASS password");
-            reply = readReply();
-        }
-        return reply;
-    }
-
+    
+    // Main method: Use FTP commands USER + username & PASS + password to log in. Only give the password. 331 means username OKAY need password
     public ResponseData login(String username, String password) throws IOException {
         sendCommand("USER " + username);
         ResponseData reply = readReply();
@@ -77,6 +94,25 @@ public class FTPCommands {
             reply = readReply();
         }
         return reply;
+    }
+    
+    public ResponseData loginAnonymous(String host) throws IOException {
+        String profile = resolveProfile(host);
+        if (profile == null) {
+            throw new IOException("Unknown host: " + host);
+        }
+
+        String user = props.getProperty("ftp.profile." + profile + ".user");
+        String pass = props.getProperty("ftp.profile." + profile + ".pass");
+
+        return login(user, pass); 
+    }
+
+    private String resolveProfile(String host) {
+        if (host.equals(props.getProperty("ftp.host.local"))) return "local";
+        if (host.equals(props.getProperty("ftp.host.gnu"))) return "gnu";
+        if (host.equals(props.getProperty("ftp.host.rebex"))) return "rebex";
+        return null;
     }
 
     public ResponseData sendQuit() throws IOException {
