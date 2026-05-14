@@ -1,9 +1,9 @@
 package herrcult69.compnet;
 
 public class ResponseData {
-	private String statusCode;
-	private String message;
-	private String data;
+	private String statusCode; 
+	private String message; // the Final/ Ending from response
+	private String data; // the data from dataSocket if have, null if control socket only
 
 	public ResponseData() {
 	}
@@ -50,7 +50,7 @@ public class ResponseData {
 		String trimmed = response.trim();
 		StringBuilder code = new StringBuilder();
 		for (int i = 0; i < trimmed.length(); i++) {
-			char c = trimmed.charAt(i);
+			char c = trimmed.charAt(i); // loop thru, from begining if it is a digit then add it to the code variable via StringBuilder, then turn it to String if its not 0 length
 			if (Character.isDigit(c)) {
 				code.append(c);
 			} else {

@@ -27,8 +27,9 @@ public class FTPCommands {
     private PrintWriter pw;
     private BufferedReader br;
 
+    // Loads server profiles from the embedded config.properties file via the classpath into the Properties map.
      public FTPCommands() throws IOException {
-        try (InputStream in = getClass().getClassLoader().getResourceAsStream("config.properties")) {
+        try (InputStream in = getClass().getResourceAsStream("/config.properties")) {
             if (in == null) throw new IOException("config.properties not found");
             props.load(in);
         }
@@ -96,6 +97,7 @@ public class FTPCommands {
         return reply;
     }
     
+    // Uses the provided credential from config.properties of the known server's anony users, based on the server ipaddress
     public ResponseData loginAnonymous(String host) throws IOException {
         String profile = resolveProfile(host);
         if (profile == null) {
@@ -108,60 +110,69 @@ public class FTPCommands {
         return login(user, pass); 
     }
 
+    // Helper function: return the needed profile of given host
     private String resolveProfile(String host) {
         if (host.equals(props.getProperty("ftp.host.local"))) return "local";
-        if (host.equals(props.getProperty("ftp.host.gnu"))) return "gnu";
         if (host.equals(props.getProperty("ftp.host.rebex"))) return "rebex";
         return null;
     }
 
+    // Send quit command to Server, logout and close the connection
     public ResponseData sendQuit() throws IOException {
         sendCommand("QUIT");
         return readReply();
     }
 
+    // send PWD command to server, get current directory
     public ResponseData sendPWD() throws IOException {
         sendCommand("PWD");
         return readReply();
     }
 
+    // Send CWD command to server to change current working directory.
     public ResponseData sendCWD(String dirPath) throws IOException {
         sendCommand("CWD " + dirPath);
         return readReply();
     }
 
+    // Send MKD command to server to create a new directory.
     public ResponseData sendMKD(String dirName) throws IOException {
         sendCommand("MKD " + dirName);
         return readReply();
     }
 
+    // Send RMD command to server to remove an existing directory.
     public ResponseData sendRMD(String dirName) throws IOException {
         sendCommand("RMD " + dirName);
         return readReply();
     }
 
+    // Send PASV command to server to request data transfer in passive mode. which mean that the server will return a 6 value tuble with ip and port for the new datasocket
     public ResponseData sendPASV() throws IOException {
         sendCommand("PASV");
         return readReply();
     }
 
+    // Send DELE command to server to delete a named file
     public ResponseData sendDELE(String fileName) throws IOException {
         sendCommand("DELE " + fileName);
         return readReply();
     }
 
+    // Send TYPE I command to switch to Image (binary) mode for data transfers instead of A which send Ascii which should only use for TEXT sending
     public ResponseData setTYPEI() throws IOException {
         sendCommand("TYPE I");
         return readReply();
     }
 
+    // Main Method: Open a passive data socket and use RETR to download a file from the server.
     public ResponseData PASV_RETR(String remoteName) throws IOException {
         Socket dataSocket = openPassiveDataSocket();
 
         sendCommand("RETR " + remoteName);
         ResponseData resp = readReply();
         if (!resp.isSuccess()) {
-            closeDataSocket(dataSocket);
+            dataSocket.close();
             return resp;
         }
 
@@ -178,17 +189,18 @@ public class FTPCommands {
             System.out.println("Download Complete");
         }
 
-        closeDataSocket(dataSocket);
+        dataSocket.close();
         return readReply();
     }
 
+    // Main Method: Open a passive data socket and use STOR to upload a local file to the server.
     public ResponseData PASV_STOR(String localName, String remoteName) throws IOException {
         Socket dataSocket = openPassiveDataSocket();
 
         sendCommand("STOR " + remoteName);
         ResponseData resp = readReply();
         if (!resp.isSuccess()) {
-            closeDataSocket(dataSocket);
+            dataSocket.close();
             return resp;
         }
 
@@ -206,7 +218,7 @@ public class FTPCommands {
             System.out.println("Upload Complete");
         }
 
-        closeDataSocket(dataSocket);
+        dataSocket.close();
         return readReply();
     }
 
@@ -215,7 +227,7 @@ public class FTPCommands {
     //     sendCommand("LIST");
     //     ResponseData resp = readReply();
     //     if (!resp.isSuccess()) {
-    //         closeDataSocket(dataSocket);
+    //         dataSocket.close();
     //         return resp;
     //     }
 
@@ -227,16 +239,17 @@ public class FTPCommands {
     //     }
     //     System.out.println("-------------------------");
 
-    //     closeDataSocket(dataSocket);
+    //     dataSocket.close();
     //     return readReply();
     // }
 
+    // Main Method: Use LIST on a passive data socket to get directory listing, buffering it for the GUI.
     public ResponseData PASV_LIST_GUI() throws IOException {
         Socket dataSocket = openPassiveDataSocket();
         sendCommand("LIST");
         ResponseData resp = readReply();
         if (!resp.isSuccess()) {
-            closeDataSocket(dataSocket);
+            dataSocket.close();
             return resp;
         }
 
@@ -247,12 +260,13 @@ public class FTPCommands {
             sb.append(dataLine).append("\n");
         }
 
-        closeDataSocket(dataSocket);
+        dataSocket.close();
         ResponseData finalResp = readReply();
         finalResp.setData(sb.toString());
         return finalResp;
     }
 
+    // Helper Method: Sends PASV, parses the reply to get IP and port, and opens a new data connection.
     private Socket openPassiveDataSocket() throws IOException {
         sendCommand("PASV");
         ResponseData resp = readReply();
@@ -262,9 +276,10 @@ public class FTPCommands {
             throw new IOException("PASV failed: " + line);
         }
         InetSocketAddress addr = parsePASV(line);
-        return connectDataSocket(addr);
+        return new Socket(addr.getAddress(), addr.getPort());
     }
 
+    // Helper, Parses the 6-value tuple (h1,h2,h3,h4,p1,p2) returned by PASV into an socket addr.
     public InetSocketAddress parsePASV(String line) {
         int i = 4;
         while (i < line.length() && !Character.isDigit(line.charAt(i))) {
@@ -286,7 +301,7 @@ public class FTPCommands {
         String tuplePart = line.substring(i, end + 1);
         String[] octets = tuplePart.split(",");
         if (octets.length != 6) {
-            throw new IllegalArgumentException("PASV expected 6 values tuple from: " + line);
+            throw new IllegalArgumentException("PASV expected 6 values tuple: " + line);
         }
 
         int h1 = Integer.parseInt(octets[0].trim());
@@ -302,26 +317,18 @@ public class FTPCommands {
         return new InetSocketAddress(host, port);
     }
 
-    private Socket connectDataSocket(InetSocketAddress socketAddress) throws IOException {
-        return new Socket(socketAddress.getAddress(), socketAddress.getPort());
-    }
-
-    private void closeDataSocket(Socket socket) throws IOException {
-        socket.close();
-    }
-
-    // Cleanup helper
+    // Cleanup helper: close all streams and the main command socket when shutting down.
     private void cleanup() {
         try { if (pw != null) pw.close(); } catch (Exception ignore) {}
         try { if (br != null) br.close(); } catch (Exception ignore) {}
         try { if (socket != null && !socket.isClosed()) socket.close(); } catch (Exception ignore) {}
     }
 
+    // Main Method: Send QUIT and call cleanup and release resources upon application exit.
     public void close() {
         try {
             if (socket != null && !socket.isClosed()) {
-                sendCommand("QUIT");
-                readReply();
+                sendQuit();
             }
         } catch (IOException e) {
             // ignore, we're closing anyway

@@ -40,21 +40,28 @@ public class AppFTP extends Application {
     Button lsBtn = new Button("LS");
     Button cdBtn = new Button("CD...");
     Button mkdirBtn = new Button("MKDIR...");
+    Button rmdBtn = new Button("RMDIR...");
     Button putBtn = new Button("Upload (PUT)...");
     Button getBtn = new Button("Download (GET)...");
 
     private ToolBar commandMenu;
-    private BorderPane root;
+    private BorderPane root; // A 5 region layout t-b-l-r-c
 
+    // This method is called by JavaFX where main call launch(args) similar to the
+    // void run() in Threads.
+    // BUild the UI, create the Event handlers, get the style from CSS file
+    // Show the App Window on the screen and init the FTP Controller
     @Override
     public void start(Stage stage) {
         initGUI();
         setupEventHandlers(stage);
 
+        // The stage is the window and the scene is the content on the screen built to
+        // root
         Scene scene = new Scene(root, 900, 600);
-        scene.getStylesheets().add(getClass().getResource("/style.css").toExternalForm());
+        scene.getStylesheets().add(getClass().getResource("/style.css").toExternalForm()); // Ad the css rules to the scene's rule book (set of style each element can use)
         stage.setTitle("FTP Client (JavaFX)");
-        stage.setScene(scene);
+        stage.setScene(scene); // place scene on window then shows the window
         stage.show();
 
         try {
@@ -70,12 +77,11 @@ public class AppFTP extends Application {
     }
 
     private void initGUI() {
-        // Connection Fields
-
+        // Creating connection Fields
         Label hostLabel = new Label("Host");
         hostLabel.setMinWidth(70);
 
-        hostField = new TextField("127.0.0.1");
+        hostField = new TextField("localhost");
         hostField.setPromptText("FTP Server Address");
 
         HBox row1 = new HBox(8, hostLabel, hostField);
@@ -101,7 +107,7 @@ public class AppFTP extends Application {
 
         VBox leftBox = new VBox(10, row1, row2, row3);
         leftBox.setPrefWidth(320);
-        // Buttons
+        // Creating connection Buttons
 
         connectButton = new Button("Connect");
         connectButton.setPrefSize(120, 40);
@@ -130,11 +136,11 @@ public class AppFTP extends Application {
                 leftBox,
                 buttonBar);
 
-        topPanel.setPadding(new Insets(15));
+        topPanel.setPadding(new Insets(15)); // add Padding surrounding the topbar (Inset = empty space)
         // Logs
 
         clientLog = new TextArea();
-        clientLog.setEditable(false);
+        clientLog.setEditable(false); // disable abi9lity to input data in
         clientLog.setPromptText("Client commands and actions");
 
         serverLog = new TextArea();
@@ -149,10 +155,11 @@ public class AppFTP extends Application {
 
         VBox leftLogBox = new VBox(5, clientLabel, clientLog);
         VBox rightLogBox = new VBox(5, serverLabel, serverLog);
-        VBox.setVgrow(clientLog, Priority.ALWAYS);
+        VBox.setVgrow(clientLog, Priority.ALWAYS); // allow the logs to grow vertically when window grows
         VBox.setVgrow(serverLog, Priority.ALWAYS);
 
-        SplitPane centerPane = new SplitPane(leftLogBox, rightLogBox);
+        SplitPane centerPane = new SplitPane(leftLogBox, rightLogBox);// auto share available space btween 2 panes so it
+                                                                      // dynamic
         centerPane.setDividerPositions(0.5);
         // Bottom Commands
 
@@ -160,6 +167,8 @@ public class AppFTP extends Application {
                 pwdBtn,
                 lsBtn,
                 cdBtn,
+                mkdirBtn,
+                rmdBtn,
                 putBtn,
                 getBtn);
         // Root Layout
@@ -173,6 +182,7 @@ public class AppFTP extends Application {
         root.setBottom(commandMenu);
     }
 
+    // Assign event to functions
     private void setupEventHandlers(Stage stage) {
         connectButton.setOnAction(e -> onConnectButtonClicked());
         loginButton.setOnAction(e -> onLoginButtonClicked());
@@ -182,51 +192,44 @@ public class AppFTP extends Application {
         pwdBtn.setOnAction(e -> onPwdButtonClicked());
         lsBtn.setOnAction(e -> onLsButtonClicked());
         cdBtn.setOnAction(e -> onCdButtonClicked());
+        mkdirBtn.setOnAction(e -> onMkdirButtonClicked());
+        rmdBtn.setOnAction(e -> onRmdButtonClicked());
         putBtn.setOnAction(e -> onPutButtonClicked(stage));
         getBtn.setOnAction(e -> onGetButtonClicked());
     }
-        private void onConnectButtonClicked() {
-        if (ftpc == null) {
-            try {
-                ftpc = new FTPCommands();
-            } catch (IOException e) {
-                clientLog.appendText("** CLIENT ERROR - NO CONFIG FILE FOUND **\n");
-                clientLog.appendText("** PLEASE EXIT THE PROGRAM **\n");
-                updateUIState(AppState.DISCONNECTED);
-                connectButton.setDisable(true);
-            }
 
-        }
-
+    private void onConnectButtonClicked() { // Read the hostField then open a new thread to make the connection so the gui dont freeze
+                                            // NOTE THAT: Platform runlater was used because in JAVA fx only 1 thread can run the talk to the UI. 
+                                            // Thread was use because connection to Server do take a long time
         String host = hostField.getText().trim();
         if (host.isEmpty()) {
             clientLog.appendText("Host is required.\n");
-            hostField.setStyle("-fx-border-color: red;");
+            hostField.getStyleClass().add("error-field");
             return;
         } else {
-            hostField.setStyle("");
+            hostField.getStyleClass().remove("error-field");
         }
         clientLog.appendText("> Connecting to " + host + "...\n");
         connectButton.setDisable(true);
 
         new Thread(() -> {
             try {
-                
-                ResponseData res = ftpc.connect(host, 21);
-                // UMP BACK TO UI THREAD WITH THE RESULT
+
+                ResponseData result = ftpc.connect(host, 21);
+                // JUMP BACK TO UI THREAD WITH THE RESULT
                 Platform.runLater(() -> {
-                    if (res.isSuccess()) {
+                    if (result.isSuccess()) {
                         clientLog.appendText("Connected to " + host + ".\n");
-                        serverLog.appendText(res.getMessage() + "\n");
+                        serverLog.appendText(result.getMessage() + "\n");
                         updateUIState(AppState.CONNECTED);
                     } else {
-                        clientLog.appendText("Connection failed: " + res.getMessage() + "\n");
+                        clientLog.appendText("Connection failed: " + result.getMessage() + "\n");
                         updateUIState(AppState.DISCONNECTED);
                     }
                 });
 
             } catch (IOException ex) {
-                // JUMP BACK TO UI THREAD FOR ERRORS 
+                // JUMP BACK TO UI THREAD FOR ERRORS
                 Platform.runLater(() -> {
                     clientLog.appendText("Connection error: " + ex.getMessage() + "\n");
                     updateUIState(AppState.DISCONNECTED);
@@ -235,32 +238,34 @@ public class AppFTP extends Application {
         }).start();
     }
 
-    private void onLoginButtonClicked() {
+    // Normal Login with required name and password
+    private void onLoginButtonClicked() { // Read user and pass from the its field, pass it to ftpc for it to login with the server via socket
         String user = userField.getText().trim();
         String pass = passField.getText();
 
         if (user.isEmpty()) {
             clientLog.appendText("User is required.\n");
-            userField.setStyle("-fx-border-color: red;");
+            userField.getStyleClass().add("error-field");
             return;
         } else {
-            userField.setStyle("");
+            userField.getStyleClass().remove("error-field");
         }
 
         try {
-            ResponseData res = ftpc.login(user, pass);
-            if (res.isSuccess()) {
+            ResponseData result = ftpc.login(user, pass);
+            if (result.isSuccess()) {
                 clientLog.appendText("Login successful as " + user + ".\n");
-                serverLog.appendText(res.getMessage() + "\n");
+                serverLog.appendText(result.getMessage() + "\n");
                 updateUIState(AppState.LOGGED_IN);
             } else {
-                clientLog.appendText("Login failed: " + res.getMessage() + "\n");
+                clientLog.appendText("Login failed: " + result.getMessage() + "\n");
             }
         } catch (IOException ex) {
             clientLog.appendText("Login error: " + ex.getMessage() + "\n");
         }
     }
-
+     
+    // Anonymous: Automatically login to server using annonymous credential (only support some server)
     private void onAnonymousLoginClicked() {
         try {
             String host = hostField.getText().trim();
@@ -277,14 +282,13 @@ public class AppFTP extends Application {
         }
     }
 
+    // Logout -> disconnect to server via QUIT command. Return the APP to default state ready to connect to new serer
     private void onLogoutButtonClicked() {
         clientLog.appendText("Disconnecting...\n");
-        if (ftpc != null) {
-            ftpc.close();
-        }
+        ftpc.close(); // all data related to socket is cleaned, socket cant be reopen
         updateUIState(AppState.DISCONNECTED);
         try {
-            ftpc = new FTPCommands();
+            ftpc = new FTPCommands(); // fresh start discarding old object for java trash collector
         } catch (IOException e) {
             clientLog.appendText("** CLIENT ERROR - NO CONFIG FILE FOUND **\n");
             clientLog.appendText("** PLEASE EXIT THE PROGRAM **\n");
@@ -293,21 +297,22 @@ public class AppFTP extends Application {
         }
 
     }
-
+    // PWD: show name of current dir in.
     private void onPwdButtonClicked() {
         clientLog.appendText("> pwd\n");
         try {
-            ResponseData res = ftpc.sendPWD();
-            if (res.isSuccess()) {
-                serverLog.appendText(res.getMessage() + "\n");
+            ResponseData result = ftpc.sendPWD();
+            if (result.isSuccess()) {
+                serverLog.appendText(result.getMessage() + "\n");
             } else {
-                clientLog.appendText("PWD Error: " + res.getMessage() + "\n");
+                clientLog.appendText("PWD Error: " + result.getMessage() + "\n");
             }
         } catch (IOException ex) {
             clientLog.appendText("PWD Error: " + ex.getMessage() + "\n");
         }
     }
 
+    // Ls: LIST open a thread to get the ls output from server, this command send alot of data -> long wait -> thread
     private void onLsButtonClicked() {
         clientLog.appendText("> ls\n");
         lsBtn.setDisable(true);
@@ -333,12 +338,13 @@ public class AppFTP extends Application {
         }).start();
     }
 
+    // CD change dir, button when press will create a Input Dialog Box, user enter name of dir (the UI will froze whilst dialog is open)
     private void onCdButtonClicked() {
         TextInputDialog dialog = new TextInputDialog();
         dialog.setTitle("Change Directory");
         dialog.setHeaderText("Enter directory path:");
         dialog.setContentText("Path:");
-        dialog.showAndWait().ifPresent(path -> {
+        dialog.showAndWait().ifPresent(path -> { // not Present mean cancel input
             if (!path.trim().isEmpty()) {
                 clientLog.appendText("> cd " + path + "\n");
                 try {
@@ -355,6 +361,53 @@ public class AppFTP extends Application {
         });
     }
 
+    // MKDIR create dir
+    private void onMkdirButtonClicked() {
+        TextInputDialog dialog = new TextInputDialog();
+        dialog.setTitle("Create Directory");
+        dialog.setHeaderText("Enter new directory name:");
+        dialog.setContentText("Name:");
+        dialog.showAndWait().ifPresent(dirName -> {
+            if (!dirName.trim().isEmpty()) {
+                clientLog.appendText("> mkdir " + dirName + "\n");
+                try {
+                    ResponseData res = ftpc.sendMKD(dirName);
+                    if (res.isSuccess()) {
+                        serverLog.appendText(res.getMessage() + "\n");
+                    } else {
+                        clientLog.appendText("MKDIR Error: " + res.getMessage() + "\n");
+                    }
+                } catch (IOException ex) {
+                    clientLog.appendText("MKDIR Error: " + ex.getMessage() + "\n");
+                }
+            }
+        });
+    }
+
+    // RMDIR remove dir
+    private void onRmdButtonClicked() {
+        TextInputDialog dialog = new TextInputDialog();
+        dialog.setTitle("Remove Directory");
+        dialog.setHeaderText("Enter directory name to remove:");
+        dialog.setContentText("Name:");
+        dialog.showAndWait().ifPresent(dirName -> {
+            if (!dirName.trim().isEmpty()) {
+                clientLog.appendText("> rmdir " + dirName + "\n");
+                try {
+                    ResponseData res = ftpc.sendRMD(dirName);
+                    if (res.isSuccess()) {
+                        serverLog.appendText(res.getMessage() + "\n");
+                    } else {
+                        clientLog.appendText("RMDIR Error: " + res.getMessage() + "\n");
+                    }
+                } catch (IOException ex) {
+                    clientLog.appendText("RMDIR Error: " + ex.getMessage() + "\n");
+                }
+            }
+        });
+    }
+
+    // PUT button when pressed will open up a file choose menu where u can choose the file, the path will be return and a thread is used to upload that file.
     private void onPutButtonClicked(Stage stage) {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Select File to Upload");
@@ -371,11 +424,10 @@ public class AppFTP extends Application {
                     Platform.runLater(() -> {
                         if (res.isSuccess()) {
                             serverLog.appendText("Upload completed for " + name + "\n");
-                            putBtn.setDisable(false);
                         } else {
                             clientLog.appendText("Upload Error: " + res.getMessage() + "\n");
-                            putBtn.setDisable(false);
                         }
+                        putBtn.setDisable(false);
                     });
                 } catch (IOException ex) {
                     Platform.runLater(() -> {
@@ -387,12 +439,13 @@ public class AppFTP extends Application {
         }
     }
 
+    // Get button when press will open a dialog where user type in the filename of the remote file on server, server will send back the downloaded file.
     private void onGetButtonClicked() {
         TextInputDialog dialog = new TextInputDialog();
         dialog.setTitle("Download File");
         dialog.setHeaderText("Enter remote file name to download:");
         dialog.setContentText("File name:");
-        dialog.showAndWait().ifPresent(fileName -> {
+        dialog.showAndWait().ifPresent(fileName -> { // not Present mean cancel input
             if (!fileName.trim().isEmpty()) {
                 clientLog.appendText("> get " + fileName + "\n");
                 clientLog.appendText("Downloading for " + fileName + "\n");
@@ -403,12 +456,10 @@ public class AppFTP extends Application {
                         Platform.runLater(() -> {
                             if (res.isSuccess()) {
                                 serverLog.appendText("Download completed for " + fileName + "\n");
-                                getBtn.setDisable(false);
-
                             } else {
                                 clientLog.appendText("Download Error: " + res.getMessage() + "\n");
-                                getBtn.setDisable(false);
                             }
+                            getBtn.setDisable(false);
                         });
                     } catch (IOException ex) {
                         Platform.runLater(() -> {
@@ -421,6 +472,7 @@ public class AppFTP extends Application {
         });
     }
 
+    // Function of Convenient, update the UI upon state, DISCONNECTED CONNECTED LOGGED_IN
     private void updateUIState(AppState state) {
         switch (state) {
             case DISCONNECTED:
