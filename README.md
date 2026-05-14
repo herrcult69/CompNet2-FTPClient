@@ -15,14 +15,14 @@ To build and run this application, you will need:
 - **Maven:** Project architecture, lifecycle management, and build automation.
 
 ## UI Visuals
-*(Replace the placeholder links below with actual screenshots of your application)*
+
 
 ### Login Screen
-![Login Screen Placeholder](path/to/login_image.png)
+![Login Screen Placeholder](img/UI-FTP.png)
 *Description: The login interface allowing user authentication or Anonymous login configurations.*
 
 ### Main Dashboard & File Operations
-![Main UI Placeholder](path/to/main_dashboard_image.png)
+![Main UI Placeholder](img/UI-FTP-ext.png)
 *Description: The central hub where users can see server logs, client command history, and execute various FTP procedures using the command toolbar.*
 
 ## How to Run It
@@ -68,3 +68,6 @@ This application externalizes UI styling and server configurations using the `sr
 ## Developer
 - **Name:** herrcult69 (Huynh Van Hoa Le)
 - **GitHub:** [CompNet2-FTPClient](https://github.com/herrcult69/CompNet2-FTPClient)
+
+## Integrity Declaration
+I confirm that this submission is my own work. I did not copy code from AI tools, classmates, or online repositories.
