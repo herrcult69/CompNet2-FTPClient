@@ -502,6 +502,17 @@ public class AppFTP extends Application {
         });
     }
 
+    // Helper to toggle FTP buttons on or off
+    private void setFtpButtonDiable(boolean disable) {
+        pwdBtn.setDisable(disable);
+        lsBtn.setDisable(disable);
+        cdBtn.setDisable(disable);
+        mkdirBtn.setDisable(disable);
+        rmdBtn.setDisable(disable);
+        putBtn.setDisable(disable);
+        getBtn.setDisable(disable);
+    }
+
     // Function of Convenient, update the UI upon state, DISCONNECTED CONNECTED LOGGED_IN
     private void updateUIState(AppState state) {
         switch (state) {
@@ -515,7 +526,7 @@ public class AppFTP extends Application {
                 passField.setDisable(true);
 
                 logoutButton.setDisable(true);
-                commandMenu.setDisable(true);
+                setFtpButtonDiable(true);
                 break;
 
             case CONNECTED:
@@ -528,7 +539,7 @@ public class AppFTP extends Application {
                 passField.setDisable(false);
 
                 logoutButton.setDisable(false);
-                commandMenu.setDisable(true);
+                setFtpButtonDiable(true);
                 break;
 
             case LOGGED_IN:
@@ -541,7 +552,7 @@ public class AppFTP extends Application {
                 passField.setDisable(true);
 
                 logoutButton.setDisable(false);
-                commandMenu.setDisable(false);
+                setFtpButtonDiable(false);
                 break;
         }
     }
