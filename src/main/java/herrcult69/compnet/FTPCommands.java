@@ -39,6 +39,7 @@ public class FTPCommands {
     public ResponseData connect(String host, int port) throws IOException {
         try {
             socket = new Socket(host, port);
+            socket.setSoTimeout(10000); // 10 second timeout for network drops
             br = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             pw = new PrintWriter(socket.getOutputStream(), true);
 
@@ -166,7 +167,7 @@ public class FTPCommands {
     }
 
     // Main Method: Open a passive data socket and use RETR to download a file from the server.
-    public ResponseData PASV_RETR(String remoteName) throws IOException {
+    public ResponseData PASV_RETR(String remoteName, String localSavePath) throws IOException {
         Socket dataSocket = openPassiveDataSocket();
 
         sendCommand("RETR " + remoteName);
@@ -179,7 +180,7 @@ public class FTPCommands {
         System.out.println("Downloading");
 
         try (InputStream is = dataSocket.getInputStream();
-             FileOutputStream fos = new FileOutputStream(remoteName)) {
+             FileOutputStream fos = new FileOutputStream(localSavePath)) {
 
             byte[] buffer = new byte[4096];
             int numBytesRead;

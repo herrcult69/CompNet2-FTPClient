@@ -13,6 +13,7 @@
 }
 
 .button {
+    -fx-border-radius: 8;
     -fx-background-radius: 8;
     -fx-font-size: 13px;
     -fx-padding: 8 14 8 14;

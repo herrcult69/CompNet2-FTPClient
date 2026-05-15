@@ -1,31 +1,31 @@
 # ComputerNetwork2 Project: Client Implementation of TCP Protocol using Java
 
 ## Overview
-This project is a custom FTP (File Transfer Protocol) Client built from scratch using Java as part of the Computer Network 2 coursework. It demonstrates a working implementation of application-layer protocols over TCP sockets, interacting directly with FTP servers through raw commands and handling passive data socket transfers for file management.
+This project is a custom FTP (File Transfer Protocol) Client built from scratch using Java as part of the Computer Network 2 final project. It demonstrates a working implementation of application-layer protocols over TCP sockets, interacting directly with FTP servers through raw commands and handling active control socket and passive data socket transfers for file management.
 
-## Prerequisites
+## Pre-requirement
 To build and run this application, you will need:
-- **Java Development Kit (JDK):** Version 11 or higher (with JavaFX support)
+- **Java Development Kit (JDK):** Version 17 or higher (with JavaFX support)
 - **Maven:** For dependency management and building the project
-- An active internet connection or a local network mapped to an FTP server for testing.
+- An active internet connection or a locally hosted FTP server for testing (in this case FileZilla).
 
 ## Technology Used (Libraries)
-- **Core Java (`java.net`, `java.io`):** Bare-metal TCP `Socket` programming, `InputStream`/`OutputStream` management, and standard I/O buffers for protocol data transmission.
-- **JavaFX:** Providing the graphical user interface (GUI), interactive dialogs, and platform-threading (`Platform.runLater`) for non-blocking UI updates.
-- **Maven:** Project architecture, lifecycle management, and build automation.
+- **java.net & java.io:** for TCP `Socket` programming, `InputStream`/`OutputStream` management, and standard I/O manipulation for protocol data transmission.
+- **JavaFX:** Providing the graphical user interface (GUI), dialogs, and platform-threading (`Platform.runLater`) for non-blocking UI updates.
+- **Maven:** Project builder/ management.
 
 ## UI Visuals
 
 
-### Login Screen
+### Connection/Login Screen
 ![Login Screen Placeholder](img/UI-FTP.png)
-*Description: The login interface allowing user authentication or Anonymous login configurations.*
+*Description: The login interface allowing serverconnection, user authentication or Anonymous login configurations.*
 
 ### Main Dashboard & File Operations
 ![Main UI Placeholder](img/UI-FTP-ext.png)
 *Description: The central hub where users can see server logs, client command history, and execute various FTP procedures using the command toolbar.*
 
-## How to Run It
+## How to Run the APP
 
 ### Using Maven (Command Line)
 1. Open your terminal and navigate to the project's root directory (where `pom.xml` is located):
@@ -37,7 +37,7 @@ To build and run this application, you will need:
    mvn clean compile
    ```
 3. Run the application:
-   *(Assuming you have the JavaFX maven plugin or exec plugin configured)*
+   *(Assuming the JavaFX maven plugin or configured)*
    ```bash
    mvn javafx:run
    # OR
@@ -45,9 +45,9 @@ To build and run this application, you will need:
    ```
 
 ## Configuration & Resources
-This application externalizes UI styling and server configurations using the `src/main/resources/` directory:
+This application uses external (via CSS) UI styling and server configurations using the `src/main/resources/` directory:
 - **`style.css`**: Contains all JavaFX styling rules for the UI.
-- **`config.properties`**: Manages known server profiles. You can easily edit this file to add or modify anonymous login credentials for specific server IPs. The application reads these mappings seamlessly via the ClassLoader, allowing you to scale login profiles without modifying backend Java code.
+- **`config.properties`**: Manages known server profiles. You can easily edit this file to add or modify anonymous login credentials for specific server IPs. The application reads these mappings, allowing you to add login profiles without modifying backend Java code.
 
 ## Features
 - **Authentication:** Standard User/Password login as well as Anonymous profile logging.
@@ -63,7 +63,7 @@ This application externalizes UI styling and server configurations using the `sr
   - Upload files to the server (`STOR`)
   - Download files from the server (`RETR`)
   - Delete files from the server (`DELE`)
-- **Live Logging:** Real-time dual-console output showcasing both Client Commands and Raw Server Responses for deep protocol visibility.
+- **Live Logging:** Real-time dual-console output showing both Client Commands and Raw Server Responses.
 
 ## Developer
 - **Name:** herrcult69 (Huynh Van Hoa Le)

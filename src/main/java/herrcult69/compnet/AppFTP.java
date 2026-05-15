@@ -195,7 +195,7 @@ public class AppFTP extends Application {
         mkdirBtn.setOnAction(e -> onMkdirButtonClicked());
         rmdBtn.setOnAction(e -> onRmdButtonClicked());
         putBtn.setOnAction(e -> onPutButtonClicked(stage));
-        getBtn.setOnAction(e -> onGetButtonClicked());
+        getBtn.setOnAction(e -> onGetButtonClicked(stage));
     }
 
     private void onConnectButtonClicked() { // Read the hostField then open a new thread to make the connection so the gui dont freeze
@@ -440,34 +440,49 @@ public class AppFTP extends Application {
     }
 
     // Get button when press will open a dialog where user type in the filename of the remote file on server, server will send back the downloaded file.
-    private void onGetButtonClicked() {
-        TextInputDialog dialog = new TextInputDialog();
+    private void onGetButtonClicked(Stage stage) {
+        String selectedText = "";
+        if (serverLog.getSelectedText() != null) {
+            selectedText = serverLog.getSelectedText().trim();
+        }
+
+        TextInputDialog dialog = new TextInputDialog(selectedText);
         dialog.setTitle("Download File");
         dialog.setHeaderText("Enter remote file name to download:");
         dialog.setContentText("File name:");
         dialog.showAndWait().ifPresent(fileName -> { // not Present mean cancel input
             if (!fileName.trim().isEmpty()) {
-                clientLog.appendText("> get " + fileName + "\n");
-                clientLog.appendText("Downloading for " + fileName + "\n");
-                getBtn.setDisable(true);
-                new Thread(() -> {
-                    try {
-                        ResponseData res = ftpc.PASV_RETR(fileName);
-                        Platform.runLater(() -> {
-                            if (res.isSuccess()) {
-                                serverLog.appendText("Download completed for " + fileName + "\n");
-                            } else {
-                                clientLog.appendText("Download Error: " + res.getMessage() + "\n");
-                            }
-                            getBtn.setDisable(false);
-                        });
-                    } catch (IOException ex) {
-                        Platform.runLater(() -> {
-                            clientLog.appendText("Download Error: " + ex.getMessage() + "\n");
-                            getBtn.setDisable(false);
-                        });
-                    }
-                }).start();
+                
+                javafx.stage.DirectoryChooser directoryChooser = new javafx.stage.DirectoryChooser();
+                directoryChooser.setTitle("Select Download Destination");
+                File selectedDir = directoryChooser.showDialog(stage);
+
+                if (selectedDir != null) {
+                    File saveFile = new File(selectedDir, fileName);
+                    String localSavePath = saveFile.getAbsolutePath();
+
+                    clientLog.appendText("> get " + fileName + "\n");
+                    clientLog.appendText("Downloading to " + localSavePath + " ...\n");
+                    getBtn.setDisable(true);
+                    new Thread(() -> {
+                        try {
+                            ResponseData res = ftpc.PASV_RETR(fileName, localSavePath);
+                            Platform.runLater(() -> {
+                                if (res.isSuccess()) {
+                                    serverLog.appendText("Download completed: " + localSavePath + "\n");
+                                } else {
+                                    clientLog.appendText("Download Error: " + res.getMessage() + "\n");
+                                }
+                                getBtn.setDisable(false);
+                            });
+                        } catch (IOException ex) {
+                            Platform.runLater(() -> {
+                                clientLog.appendText("Download Error: " + ex.getMessage() + "\n");
+                                getBtn.setDisable(false);
+                            });
+                        }
+                    }).start();
+                }
             }
         });
     }
