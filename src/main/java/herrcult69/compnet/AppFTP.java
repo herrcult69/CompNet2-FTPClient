@@ -43,6 +43,7 @@ public class AppFTP extends Application {
     Button rmdBtn = new Button("RMDIR...");
     Button putBtn = new Button("Upload (PUT)...");
     Button getBtn = new Button("Download (GET)...");
+    Button clearLogsBtn = new Button("Clear Logs");
 
     private ToolBar commandMenu;
     private BorderPane root; // A 5 region layout t-b-l-r-c
@@ -170,7 +171,9 @@ public class AppFTP extends Application {
                 mkdirBtn,
                 rmdBtn,
                 putBtn,
-                getBtn);
+                getBtn,
+                new javafx.scene.control.Separator(),
+                clearLogsBtn);
         // Root Layout
 
         root = new BorderPane();
@@ -196,6 +199,11 @@ public class AppFTP extends Application {
         rmdBtn.setOnAction(e -> onRmdButtonClicked());
         putBtn.setOnAction(e -> onPutButtonClicked(stage));
         getBtn.setOnAction(e -> onGetButtonClicked(stage));
+
+        clearLogsBtn.setOnAction(e -> {
+            clientLog.clear();
+            serverLog.clear();
+        });
     }
 
     private void onConnectButtonClicked() { // Read the hostField then open a new thread to make the connection so the gui dont freeze
@@ -340,7 +348,12 @@ public class AppFTP extends Application {
 
     // CD change dir, button when press will create a Input Dialog Box, user enter name of dir (the UI will froze whilst dialog is open)
     private void onCdButtonClicked() {
-        TextInputDialog dialog = new TextInputDialog();
+        String selectedText = "";
+        if (serverLog.getSelectedText() != null) {
+            selectedText = serverLog.getSelectedText().trim();
+        }
+
+        TextInputDialog dialog = new TextInputDialog(selectedText);
         dialog.setTitle("Change Directory");
         dialog.setHeaderText("Enter directory path:");
         dialog.setContentText("Path:");
@@ -423,7 +436,8 @@ public class AppFTP extends Application {
                     ResponseData res = ftpc.PASV_STOR(absPath, name);
                     Platform.runLater(() -> {
                         if (res.isSuccess()) {
-                            serverLog.appendText("Upload completed for " + name + "\n");
+                            clientLog.appendText("Upload completed for " + name + "\n");
+                            serverLog.appendText(res.getMessage() + "\n");
                         } else {
                             clientLog.appendText("Upload Error: " + res.getMessage() + "\n");
                         }
@@ -469,7 +483,8 @@ public class AppFTP extends Application {
                             ResponseData res = ftpc.PASV_RETR(fileName, localSavePath);
                             Platform.runLater(() -> {
                                 if (res.isSuccess()) {
-                                    serverLog.appendText("Download completed: " + localSavePath + "\n");
+                                    clientLog.appendText("Download completed: " + localSavePath + "\n");
+                                    serverLog.appendText(res.getMessage() + "\n");
                                 } else {
                                     clientLog.appendText("Download Error: " + res.getMessage() + "\n");
                                 }
