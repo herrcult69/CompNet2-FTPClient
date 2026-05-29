@@ -41,6 +41,7 @@ public class AppFTP extends Application {
     Button cdBtn = new Button("CD...");
     Button mkdirBtn = new Button("MKDIR...");
     Button rmdBtn = new Button("RMDIR...");
+    Button deleBtn = new Button("Delete File...");
     Button putBtn = new Button("Upload (STOR)...");
     Button getBtn = new Button("Download (RETR)...");
     Button clearLogsBtn = new Button("Clear Logs");
@@ -60,7 +61,10 @@ public class AppFTP extends Application {
         // The stage is the window and the scene is the content on the screen built to
         // root
         Scene scene = new Scene(root, 900, 600);
-        scene.getStylesheets().add(getClass().getResource("/style.css").toExternalForm()); // Ad the css rules to the scene's rule book (set of style each element can use)
+        scene.getStylesheets().add(getClass().getResource("/style.css").toExternalForm()); // Ad the css rules to the
+                                                                                           // scene's rule book (set of
+                                                                                           // style each element can
+                                                                                           // use)
         stage.setTitle("FTP Client (JavaFX)");
         stage.setScene(scene); // place scene on window then shows the window
         stage.show();
@@ -169,7 +173,8 @@ public class AppFTP extends Application {
                 lsBtn,
                 cdBtn,
                 mkdirBtn,
-                rmdBtn,
+                rmdBtn, 
+                deleBtn, 
                 putBtn,
                 getBtn,
                 new javafx.scene.control.Separator(),
@@ -197,6 +202,7 @@ public class AppFTP extends Application {
         cdBtn.setOnAction(e -> onCdButtonClicked());
         mkdirBtn.setOnAction(e -> onMkdirButtonClicked());
         rmdBtn.setOnAction(e -> onRmdButtonClicked());
+        deleBtn.setOnAction(e -> onDeleButtonClicked());
         putBtn.setOnAction(e -> onPutButtonClicked(stage));
         getBtn.setOnAction(e -> onGetButtonClicked(stage));
 
@@ -206,8 +212,10 @@ public class AppFTP extends Application {
         });
     }
 
-    private void onConnectButtonClicked() { // Read the hostField then open a new thread to make the connection so the gui dont freeze
-                                            // NOTE THAT: Platform runlater was used because in JAVA fx only 1 thread can run the talk to the UI. 
+    private void onConnectButtonClicked() { // Read the hostField then open a new thread to make the connection so the
+                                            // gui dont freeze
+                                            // NOTE THAT: Platform runlater was used because in JAVA fx only 1 thread
+                                            // can run the talk to the UI.
                                             // Thread was use because connection to Server do take a long time
         String host = hostField.getText().trim();
         if (host.isEmpty()) {
@@ -248,7 +256,8 @@ public class AppFTP extends Application {
     }
 
     // Normal Login with required name and password
-    private void onLoginButtonClicked() { // Read user and pass from the its field, pass it to ftpc for it to login with the server via socket
+    private void onLoginButtonClicked() { // Read user and pass from the its field, pass it to ftpc for it to login with
+                                          // the server via socket
         String user = userField.getText().trim();
         String pass = passField.getText();
 
@@ -274,8 +283,9 @@ public class AppFTP extends Application {
             clientLog.appendText("Login error: " + ex.getMessage() + "\n");
         }
     }
-     
-    // Anonymous: Automatically login to server using annonymous credential (only support some server)
+
+    // Anonymous: Automatically login to server using annonymous credential (only
+    // support some server)
     private void onAnonymousLoginClicked() {
         try {
             String host = hostField.getText().trim();
@@ -293,7 +303,8 @@ public class AppFTP extends Application {
         }
     }
 
-    // Logout -> disconnect to server via QUIT command. Return the APP to default state ready to connect to new serer
+    // Logout -> disconnect to server via QUIT command. Return the APP to default
+    // state ready to connect to new serer
     private void onLogoutButtonClicked() {
         clientLog.appendText("Disconnecting...\n");
         ftpc.close(); // all data related to socket is cleaned, socket cant be reopen
@@ -308,6 +319,7 @@ public class AppFTP extends Application {
         }
 
     }
+
     // PWD: show name of current dir in.
     private void onPwdButtonClicked() {
         clientLog.appendText("> pwd\n");
@@ -324,7 +336,8 @@ public class AppFTP extends Application {
         }
     }
 
-    // Ls: LIST open a thread to get the ls output from server, this command send alot of data -> long wait -> thread
+    // Ls: LIST open a thread to get the ls output from server, this command send
+    // alot of data -> long wait -> thread
     private void onLsButtonClicked() {
         clientLog.appendText("> ls\n");
         lsBtn.setDisable(true);
@@ -351,7 +364,8 @@ public class AppFTP extends Application {
         }).start();
     }
 
-    // CD change dir, button when press will create a Input Dialog Box, user enter name of dir (the UI will froze whilst dialog is open)
+    // CD change dir, button when press will create a Input Dialog Box, user enter
+    // name of dir (the UI will froze whilst dialog is open)
     private void onCdButtonClicked() {
         String selectedText = "";
         if (serverLog.getSelectedText() != null) {
@@ -433,7 +447,37 @@ public class AppFTP extends Application {
         });
     }
 
-    // PUT button when pressed will open up a file choose menu where u can choose the file, the path will be return and a thread is used to upload that file.
+    // DELE delete a file
+    private void onDeleButtonClicked() {
+        String selectedText = "";
+        if (serverLog.getSelectedText() != null) {
+            selectedText = serverLog.getSelectedText().trim();
+        }
+
+        TextInputDialog dialog = new TextInputDialog(selectedText);
+        dialog.setTitle("Delete File");
+        dialog.setHeaderText("Enter file name to delete:");
+        dialog.setContentText("Name:");
+        dialog.showAndWait().ifPresent(fileName -> {
+            if (!fileName.trim().isEmpty()) {
+                clientLog.appendText("> dele " + fileName + "\n");
+                try {
+                    ResponseData res = ftpc.sendDELE(fileName);
+                    if (res.isSuccess()) {
+                        serverLog.appendText(res.getMessage() + "\n");
+                    } else {
+                        clientLog.appendText("DELE Error.\n");
+                        serverLog.appendText(res.getMessage() + "\n");
+                    }
+                } catch (IOException ex) {
+                    clientLog.appendText("DELE Error: " + ex.getMessage() + "\n");
+                }
+            }
+        });
+    }
+
+    // PUT button when pressed will open up a file choose menu where u can choose
+    // the file, the path will be return and a thread is used to upload that file.
     private void onPutButtonClicked(Stage stage) {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Select File to Upload");
@@ -467,7 +511,8 @@ public class AppFTP extends Application {
         }
     }
 
-    // Get button when press will open a dialog where user type in the filename of the remote file on server, server will send back the downloaded file.
+    // Get button when press will open a dialog where user type in the filename of
+    // the remote file on server, server will send back the downloaded file.
     private void onGetButtonClicked(Stage stage) {
         String selectedText = "";
         if (serverLog.getSelectedText() != null) {
@@ -480,7 +525,7 @@ public class AppFTP extends Application {
         dialog.setContentText("File name:");
         dialog.showAndWait().ifPresent(fileName -> { // not Present mean cancel input
             if (!fileName.trim().isEmpty()) {
-                
+
                 javafx.stage.DirectoryChooser directoryChooser = new javafx.stage.DirectoryChooser();
                 directoryChooser.setTitle("Select Download Destination");
                 File selectedDir = directoryChooser.showDialog(stage);
@@ -523,12 +568,14 @@ public class AppFTP extends Application {
         lsBtn.setDisable(disable);
         cdBtn.setDisable(disable);
         mkdirBtn.setDisable(disable);
+        deleBtn.setDisable(disable);
         rmdBtn.setDisable(disable);
         putBtn.setDisable(disable);
         getBtn.setDisable(disable);
     }
 
-    // Function of Convenient, update the UI upon state, DISCONNECTED CONNECTED LOGGED_IN
+    // Function of Convenient, update the UI upon state, DISCONNECTED CONNECTED
+    // LOGGED_IN
     private void updateUIState(AppState state) {
         switch (state) {
             case DISCONNECTED:
