@@ -41,8 +41,8 @@ public class AppFTP extends Application {
     Button cdBtn = new Button("CD...");
     Button mkdirBtn = new Button("MKDIR...");
     Button rmdBtn = new Button("RMDIR...");
-    Button putBtn = new Button("Upload (PUT)...");
-    Button getBtn = new Button("Download (GET)...");
+    Button putBtn = new Button("Upload (STOR)...");
+    Button getBtn = new Button("Download (RETR)...");
     Button clearLogsBtn = new Button("Clear Logs");
 
     private ToolBar commandMenu;
@@ -231,7 +231,8 @@ public class AppFTP extends Application {
                         serverLog.appendText(result.getMessage() + "\n");
                         updateUIState(AppState.CONNECTED);
                     } else {
-                        clientLog.appendText("Connection failed: " + result.getMessage() + "\n");
+                        clientLog.appendText("Connection failed.\n");
+                        serverLog.appendText(result.getMessage() + "\n");
                         updateUIState(AppState.DISCONNECTED);
                     }
                 });
@@ -266,7 +267,8 @@ public class AppFTP extends Application {
                 serverLog.appendText(result.getMessage() + "\n");
                 updateUIState(AppState.LOGGED_IN);
             } else {
-                clientLog.appendText("Login failed: " + result.getMessage() + "\n");
+                clientLog.appendText("Login failed.\n");
+                serverLog.appendText(result.getMessage() + "\n");
             }
         } catch (IOException ex) {
             clientLog.appendText("Login error: " + ex.getMessage() + "\n");
@@ -283,7 +285,8 @@ public class AppFTP extends Application {
                 serverLog.appendText(res.getMessage() + "\n");
                 updateUIState(AppState.LOGGED_IN);
             } else {
-                clientLog.appendText("Anonymous login failed: " + res.getMessage() + "\n");
+                clientLog.appendText("Anonymous login failed.\n");
+                serverLog.appendText(res.getMessage() + "\n");
             }
         } catch (IOException ex) {
             clientLog.appendText("Anonymous login error: " + ex.getMessage() + "\n");
@@ -313,7 +316,8 @@ public class AppFTP extends Application {
             if (result.isSuccess()) {
                 serverLog.appendText(result.getMessage() + "\n");
             } else {
-                clientLog.appendText("PWD Error: " + result.getMessage() + "\n");
+                clientLog.appendText("PWD Error.\n");
+                serverLog.appendText(result.getMessage() + "\n");
             }
         } catch (IOException ex) {
             clientLog.appendText("PWD Error: " + ex.getMessage() + "\n");
@@ -333,7 +337,8 @@ public class AppFTP extends Application {
                         serverLog.appendText(res.getData() + "\n");
                         serverLog.appendText(res.getMessage() + "\n");
                     } else {
-                        clientLog.appendText("LS Error: " + res.getMessage() + "\n");
+                        clientLog.appendText("LS Error.\n");
+                        serverLog.appendText(res.getMessage() + "\n");
                     }
                     lsBtn.setDisable(false);
                 });
@@ -365,7 +370,8 @@ public class AppFTP extends Application {
                     if (res.isSuccess()) {
                         serverLog.appendText(res.getMessage() + "\n");
                     } else {
-                        clientLog.appendText("CWD Error: " + res.getMessage() + "\n");
+                        clientLog.appendText("CWD Error.\n");
+                        serverLog.appendText(res.getMessage() + "\n");
                     }
                 } catch (IOException ex) {
                     clientLog.appendText("CWD Error: " + ex.getMessage() + "\n");
@@ -388,7 +394,8 @@ public class AppFTP extends Application {
                     if (res.isSuccess()) {
                         serverLog.appendText(res.getMessage() + "\n");
                     } else {
-                        clientLog.appendText("MKDIR Error: " + res.getMessage() + "\n");
+                        clientLog.appendText("MKDIR Error.\n");
+                        serverLog.appendText(res.getMessage() + "\n");
                     }
                 } catch (IOException ex) {
                     clientLog.appendText("MKDIR Error: " + ex.getMessage() + "\n");
@@ -399,7 +406,12 @@ public class AppFTP extends Application {
 
     // RMDIR remove dir
     private void onRmdButtonClicked() {
-        TextInputDialog dialog = new TextInputDialog();
+        String selectedText = "";
+        if (serverLog.getSelectedText() != null) {
+            selectedText = serverLog.getSelectedText().trim();
+        }
+
+        TextInputDialog dialog = new TextInputDialog(selectedText);
         dialog.setTitle("Remove Directory");
         dialog.setHeaderText("Enter directory name to remove:");
         dialog.setContentText("Name:");
@@ -411,7 +423,8 @@ public class AppFTP extends Application {
                     if (res.isSuccess()) {
                         serverLog.appendText(res.getMessage() + "\n");
                     } else {
-                        clientLog.appendText("RMDIR Error: " + res.getMessage() + "\n");
+                        clientLog.appendText("RMDIR Error.\n");
+                        serverLog.appendText(res.getMessage() + "\n");
                     }
                 } catch (IOException ex) {
                     clientLog.appendText("RMDIR Error: " + ex.getMessage() + "\n");
@@ -439,7 +452,8 @@ public class AppFTP extends Application {
                             clientLog.appendText("Upload completed for " + name + "\n");
                             serverLog.appendText(res.getMessage() + "\n");
                         } else {
-                            clientLog.appendText("Upload Error: " + res.getMessage() + "\n");
+                            clientLog.appendText("Upload Error.\n");
+                            serverLog.appendText(res.getMessage() + "\n");
                         }
                         putBtn.setDisable(false);
                     });
@@ -486,7 +500,8 @@ public class AppFTP extends Application {
                                     clientLog.appendText("Download completed: " + localSavePath + "\n");
                                     serverLog.appendText(res.getMessage() + "\n");
                                 } else {
-                                    clientLog.appendText("Download Error: " + res.getMessage() + "\n");
+                                    clientLog.appendText("Download Error.\n");
+                                    serverLog.appendText(res.getMessage() + "\n");
                                 }
                                 getBtn.setDisable(false);
                             });
