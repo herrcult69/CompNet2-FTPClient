@@ -42,8 +42,8 @@ public class AppFTP extends Application {
     Button mkdirBtn = new Button("MKDIR...");
     Button rmdBtn = new Button("RMDIR...");
     Button deleBtn = new Button("Delete File...");
-    Button putBtn = new Button("Upload (STOR)...");
-    Button getBtn = new Button("Download (RETR)...");
+    Button storBtn = new Button("Upload (STOR)...");
+    Button retrBtn = new Button("Download (RETR)...");
     Button clearLogsBtn = new Button("Clear Logs");
 
     private ToolBar commandMenu;
@@ -175,8 +175,8 @@ public class AppFTP extends Application {
                 mkdirBtn,
                 rmdBtn, 
                 deleBtn, 
-                putBtn,
-                getBtn,
+                storBtn,
+                retrBtn,
                 new javafx.scene.control.Separator(),
                 clearLogsBtn);
         // Root Layout
@@ -203,8 +203,8 @@ public class AppFTP extends Application {
         mkdirBtn.setOnAction(e -> onMkdirButtonClicked());
         rmdBtn.setOnAction(e -> onRmdButtonClicked());
         deleBtn.setOnAction(e -> onDeleButtonClicked());
-        putBtn.setOnAction(e -> onPutButtonClicked(stage));
-        getBtn.setOnAction(e -> onGetButtonClicked(stage));
+        storBtn.setOnAction(e -> onStorButtonClicked(stage));
+        retrBtn.setOnAction(e -> onRetrButtonClicked(stage));
 
         clearLogsBtn.setOnAction(e -> {
             clientLog.clear();
@@ -478,16 +478,16 @@ public class AppFTP extends Application {
 
     // PUT button when pressed will open up a file choose menu where u can choose
     // the file, the path will be return and a thread is used to upload that file.
-    private void onPutButtonClicked(Stage stage) {
+    private void onStorButtonClicked(Stage stage) {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Select File to Upload");
         File selectedFile = fileChooser.showOpenDialog(stage);
         if (selectedFile != null) {
             String absPath = selectedFile.getAbsolutePath();
             String name = selectedFile.getName();
-            clientLog.appendText("> put " + absPath + "\n");
+            clientLog.appendText("> stor " + absPath + "\n");
             clientLog.appendText("Uploading for " + name + "\n");
-            putBtn.setDisable(true);
+            storBtn.setDisable(true);
             new Thread(() -> {
                 try {
                     ResponseData res = ftpc.PASV_STOR(absPath, name);
@@ -499,12 +499,12 @@ public class AppFTP extends Application {
                             clientLog.appendText("Upload Error.\n");
                             serverLog.appendText(res.getMessage() + "\n");
                         }
-                        putBtn.setDisable(false);
+                        storBtn.setDisable(false);
                     });
                 } catch (IOException ex) {
                     Platform.runLater(() -> {
                         clientLog.appendText("Upload Error: " + ex.getMessage() + "\n");
-                        putBtn.setDisable(false);
+                        storBtn.setDisable(false);
                     });
                 }
             }).start();
@@ -513,7 +513,7 @@ public class AppFTP extends Application {
 
     // Get button when press will open a dialog where user type in the filename of
     // the remote file on server, server will send back the downloaded file.
-    private void onGetButtonClicked(Stage stage) {
+    private void onRetrButtonClicked(Stage stage) {
         String selectedText = "";
         if (serverLog.getSelectedText() != null) {
             selectedText = serverLog.getSelectedText().trim();
@@ -534,9 +534,9 @@ public class AppFTP extends Application {
                     File saveFile = new File(selectedDir, fileName);
                     String localSavePath = saveFile.getAbsolutePath();
 
-                    clientLog.appendText("> get " + fileName + "\n");
+                    clientLog.appendText("> retr " + fileName + "\n");
                     clientLog.appendText("Downloading to " + localSavePath + " ...\n");
-                    getBtn.setDisable(true);
+                    retrBtn.setDisable(true);
                     new Thread(() -> {
                         try {
                             ResponseData res = ftpc.PASV_RETR(fileName, localSavePath);
@@ -548,12 +548,12 @@ public class AppFTP extends Application {
                                     clientLog.appendText("Download Error.\n");
                                     serverLog.appendText(res.getMessage() + "\n");
                                 }
-                                getBtn.setDisable(false);
+                                retrBtn.setDisable(false);
                             });
                         } catch (IOException ex) {
                             Platform.runLater(() -> {
                                 clientLog.appendText("Download Error: " + ex.getMessage() + "\n");
-                                getBtn.setDisable(false);
+                                retrBtn.setDisable(false);
                             });
                         }
                     }).start();
@@ -570,8 +570,8 @@ public class AppFTP extends Application {
         mkdirBtn.setDisable(disable);
         deleBtn.setDisable(disable);
         rmdBtn.setDisable(disable);
-        putBtn.setDisable(disable);
-        getBtn.setDisable(disable);
+        storBtn.setDisable(disable);
+        retrBtn.setDisable(disable);
     }
 
     // Function of Convenient, update the UI upon state, DISCONNECTED CONNECTED
